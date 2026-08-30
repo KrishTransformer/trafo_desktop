@@ -21,7 +21,9 @@ class DesignTableRow {
   });
 
   factory DesignTableRow.fromSummary(DesignSummary summary) {
-    final designData = _readJsonMap(summary.twoWindings);
+    final designData = _readJsonMap(
+      summary.isMultiWinding ? summary.multiWindings : summary.twoWindings,
+    );
     final coreData = _readNestedMap(designData['core']);
     final costData = _readNestedMap(designData['cost']);
 

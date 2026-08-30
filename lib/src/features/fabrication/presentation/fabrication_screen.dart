@@ -54,6 +54,7 @@ class _FabricationScreenState extends State<FabricationScreen> {
 
   @override
   void dispose() {
+    _controller?.closeStatusDrawer();
     _controller?.removeListener(_handleControllerChange);
     if (_ownsController) {
       _controller?.dispose();
@@ -186,73 +187,81 @@ class _WorkspaceView extends StatelessWidget {
         _WorkspaceHeader(controller: controller, state: state),
         const SizedBox(height: 18),
         Expanded(
-          child: Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 1360),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 380,
-                        child: Column(
-                          children: [
-                            _ReferencePanel(state: state),
-                            const SizedBox(height: 16),
-                            _TankPanel(controller: controller, state: state),
-                            const SizedBox(height: 16),
-                            _RadiatorPanel(
-                              controller: controller,
-                              state: state,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      SizedBox(
-                        width: 390,
-                        child: Column(
-                          children: [
-                            _LidConservatorPanel(
-                              controller: controller,
-                              state: state,
-                            ),
-                            const SizedBox(height: 16),
-                            _DetailTabsPanel(
-                              controller: controller,
-                              state: state,
-                              activeTab: activeDetailTab,
-                              onTabChanged: onDetailTabChanged,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      SizedBox(
-                        width: 470,
-                        child: Column(
-                          children: [
-                            _AccessoriesPanel(
-                              controller: controller,
-                              state: state,
-                              activeTab: activeAccessoriesTab,
-                              onTabChanged: onAccessoriesTabChanged,
-                            ),
-                            const SizedBox(height: 16),
-                            _PreviewPanel(controller: controller, state: state),
-                            const SizedBox(height: 16),
-                            _ActionPanel(controller: controller, state: state),
-                          ],
-                        ),
-                      ),
-                    ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 1180;
+              final firstColumn = Column(
+                children: [
+                  _ReferencePanel(state: state),
+                  const SizedBox(height: 16),
+                  _TankPanel(controller: controller, state: state),
+                  const SizedBox(height: 16),
+                  _RadiatorPanel(controller: controller, state: state),
+                ],
+              );
+              final secondColumn = Column(
+                children: [
+                  _LidConservatorPanel(controller: controller, state: state),
+                  const SizedBox(height: 16),
+                  _DetailTabsPanel(
+                    controller: controller,
+                    state: state,
+                    activeTab: activeDetailTab,
+                    onTabChanged: onDetailTabChanged,
                   ),
+                ],
+              );
+              final thirdColumn = Column(
+                children: [
+                  _AccessoriesPanel(
+                    controller: controller,
+                    state: state,
+                    activeTab: activeAccessoriesTab,
+                    onTabChanged: onAccessoriesTabChanged,
+                  ),
+                  const SizedBox(height: 16),
+                  _PreviewPanel(controller: controller, state: state),
+                  const SizedBox(height: 16),
+                  _ActionPanel(controller: controller, state: state),
+                ],
+              );
+              final content = stacked
+                  ? Column(
+                      children: [
+                        firstColumn,
+                        const SizedBox(height: 16),
+                        secondColumn,
+                        const SizedBox(height: 16),
+                        thirdColumn,
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 380, child: firstColumn),
+                        const SizedBox(width: 20),
+                        SizedBox(width: 390, child: secondColumn),
+                        const SizedBox(width: 20),
+                        SizedBox(width: 470, child: thirdColumn),
+                      ],
+                    );
+              return Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  primary: true,
+                  padding: const EdgeInsets.only(right: 4),
+                  child: stacked
+                      ? content
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 1360),
+                            child: content,
+                          ),
+                        ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -269,6 +278,7 @@ class _WorkspaceHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final stacked = MediaQuery.sizeOf(context).width < 820;
     final designReference = state.designId.isNotEmpty
         ? state.designId
         : state.entityId;
@@ -279,9 +289,14 @@ class _WorkspaceHeader extends StatelessWidget {
       _ => const Color(0xFF946300),
     };
 
-    return Row(
+    return Flex(
+      direction: stacked ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: stacked
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
       children: [
-        Expanded(
+        Flexible(
+          fit: stacked ? FlexFit.loose : FlexFit.tight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -307,21 +322,26 @@ class _WorkspaceHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 16),
-        _Pill(
-          icon: Icons.timeline_outlined,
-          label: '${state.drawingsStatuses.length} status entries',
-        ),
-        const SizedBox(width: 12),
-        _Pill(
-          icon: Icons.sync_outlined,
-          label: statusLabel,
-          foregroundColor: statusColor,
-        ),
-        const SizedBox(width: 12),
-        _Pill(
-          icon: Icons.keyboard_command_key_outlined,
-          label: 'Ctrl/Cmd + Enter',
+        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          alignment: stacked ? WrapAlignment.end : WrapAlignment.start,
+          children: [
+            _Pill(
+              icon: Icons.timeline_outlined,
+              label: '${state.drawingsStatuses.length} status entries',
+            ),
+            _Pill(
+              icon: Icons.sync_outlined,
+              label: statusLabel,
+              foregroundColor: statusColor,
+            ),
+            const _Pill(
+              icon: Icons.keyboard_command_key_outlined,
+              label: 'Ctrl/Cmd + Enter',
+            ),
+          ],
         ),
       ],
     );
@@ -777,6 +797,12 @@ class _DetailTabsPanel extends StatelessWidget {
                     value,
                   ),
                 ),
+                _textField(
+                  label: 'Roller Gauge',
+                  value: state.formData.stringAt('roller.roller_Guage'),
+                  onChanged: (value) =>
+                      controller.updateField('roller.roller_Guage', value),
+                ),
               ],
             ),
         ],
@@ -859,6 +885,12 @@ class _AccessoriesPanel extends StatelessWidget {
                   onChanged: (value) =>
                       controller.updateField('smpl_Vlv.smpl_Vlv_Nos', value),
                 ),
+                _textField(
+                  label: 'Radiator Valve',
+                  value: state.formData.stringAt('radiator.radiator_Vlv'),
+                  onChanged: (value) =>
+                      controller.updateField('radiator.radiator_Vlv', value),
+                ),
               ],
             ),
             1 => Wrap(
@@ -882,6 +914,18 @@ class _AccessoriesPanel extends StatelessWidget {
                   value: state.formData.boolAt('gorPipe.buchholz_Relay'),
                   onChanged: (value) =>
                       controller.updateField('gorPipe.buchholz_Relay', value),
+                ),
+                _switchTile(
+                  title: 'Single Valve',
+                  value: state.formData.boolAt('gorPipe.single_Valve'),
+                  onChanged: (value) =>
+                      controller.updateField('gorPipe.single_Valve', value),
+                ),
+                _switchTile(
+                  title: 'Valve Type 1',
+                  value: state.formData.boolAt('gorPipe.valve_Type1'),
+                  onChanged: (value) =>
+                      controller.updateField('gorPipe.valve_Type1', value),
                 ),
                 _textField(
                   label: 'MOG Tilt Angle',
@@ -940,6 +984,14 @@ class _AccessoriesPanel extends StatelessWidget {
                   value: state.formData.boolAt('lvcb.lvcb'),
                   onChanged: (value) =>
                       controller.updateField('lvcb.lvcb', value),
+                ),
+                _readOnlyField(
+                  label: 'HV Position',
+                  value: state.formData.stringAt('hvb.hvb_Pos'),
+                ),
+                _readOnlyField(
+                  label: 'LV Position',
+                  value: state.formData.stringAt('lvb.lvb_Pos'),
                 ),
               ],
             ),
@@ -1007,6 +1059,14 @@ class _AccessoriesPanel extends StatelessWidget {
                   onChanged: (value) =>
                       controller.updateField('exp_Vent.exp_Vent', value),
                 ),
+                _switchTile(
+                  title: 'Expansion Vent With OI',
+                  value: state.formData.boolAt('exp_Vent.exp_Vent_With_OI'),
+                  onChanged: (value) => controller.updateField(
+                    'exp_Vent.exp_Vent_With_OI',
+                    value,
+                  ),
+                ),
                 _textField(
                   label: 'Expansion Vent ID',
                   value: state.formData.stringAt('exp_Vent.exp_Vent_ID'),
@@ -1024,6 +1084,24 @@ class _AccessoriesPanel extends StatelessWidget {
                   value: state.formData.stringAt('restOfVariables.mbox'),
                   onChanged: (value) =>
                       controller.updateField('restOfVariables.mbox', value),
+                ),
+                _textField(
+                  label: 'Marshalling Inst. Nos',
+                  value: state.formData.stringAt(
+                    'restOfVariables.mbox_Inst_Nos',
+                  ),
+                  onChanged: (value) => controller.updateField(
+                    'restOfVariables.mbox_Inst_Nos',
+                    value,
+                  ),
+                ),
+                _textField(
+                  label: 'Thermo Syphon',
+                  value: state.formData.stringAt('restOfVariables.thrmo_Syphn'),
+                  onChanged: (value) => controller.updateField(
+                    'restOfVariables.thrmo_Syphn',
+                    value,
+                  ),
                 ),
               ],
             ),
@@ -1682,6 +1760,22 @@ Widget _textField({
       key: ValueKey<String>('fabrication-field-$label-$value'),
       initialValue: value,
       onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+    ),
+  );
+}
+
+Widget _readOnlyField({required String label, required String value}) {
+  return SizedBox(
+    width: 168,
+    child: TextFormField(
+      key: ValueKey<String>('fabrication-readonly-$label-$value'),
+      initialValue: value,
+      enabled: false,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),

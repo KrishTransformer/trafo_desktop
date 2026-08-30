@@ -127,7 +127,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onToggleSelection: homeController.toggleSelection,
                             onOpenDesign: (design) {
                               context.go(
-                                RoutePaths.twoWindingsDesign(design.id),
+                                design.isMultiWinding
+                                    ? RoutePaths.multiWindingsDesign(design.id)
+                                    : RoutePaths.twoWindingsDesign(design.id),
                                 extra: design,
                               );
                             },
@@ -155,26 +157,56 @@ class _HomeScreenState extends State<HomeScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final screenWidth = MediaQuery.sizeOf(context).width;
+        final isCompact = screenWidth < 700;
         return AlertDialog(
           title: const Text('Create New Design'),
           content: SizedBox(
-            width: 340,
-            child: _DesignTypeCard(
-              badge: '2W',
-              tag: 'Production Flow',
-              title: '2 Winding',
-              description:
-                  'Start the current two-winding design workflow with the full calculation page.',
-              features: const <String>[
-                'Oil Type',
-                'Dry Type',
-                'Mechanical Design',
+            width: isCompact ? screenWidth - 64 : 720,
+            child: Flex(
+              direction: isCompact ? Axis.vertical : Axis.horizontal,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: _DesignTypeCard(
+                    badge: '2W',
+                    tag: 'Production Flow',
+                    title: '2 Winding',
+                    description:
+                        'Start the current two-winding design workflow with the full calculation page.',
+                    features: const <String>[
+                      'Oil Type',
+                      'Dry Type',
+                      'Mechanical Design',
+                    ],
+                    cta: 'Open 2 Winding',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      this.context.go(RoutePaths.twoWindingsDesign('new'));
+                    },
+                  ),
+                ),
+                SizedBox(width: isCompact ? 0 : 14, height: isCompact ? 14 : 0),
+                Flexible(
+                  child: _DesignTypeCard(
+                    badge: 'MW',
+                    tag: 'Multi-Wdg',
+                    title: 'Multi Winding',
+                    description:
+                        'Open the MultiWdg workspace for transformer designs with multiple windings.',
+                    features: const <String>[
+                      'Multiple Windings',
+                      'Saved Designs',
+                      'Lock Controls',
+                    ],
+                    cta: 'Open Multi Winding',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      this.context.go(RoutePaths.multiWindingsDesign('new'));
+                    },
+                  ),
+                ),
               ],
-              cta: 'Open 2 Winding',
-              onTap: () {
-                Navigator.of(context).pop();
-                this.context.go(RoutePaths.twoWindingsDesign('new'));
-              },
             ),
           ),
         );
@@ -236,10 +268,16 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isCompact = MediaQuery.sizeOf(context).width < 720;
 
-    return Row(
+    return Flex(
+      direction: isCompact ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: isCompact
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
       children: [
-        Expanded(
+        Flexible(
+          fit: isCompact ? FlexFit.loose : FlexFit.tight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -247,7 +285,7 @@ class _HomeHeader extends StatelessWidget {
                 'Krish Transformer Design Software',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF111111),
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
@@ -260,8 +298,9 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isCompact ? 0 : 12, height: isCompact ? 12 : 0),
         Wrap(
+          alignment: isCompact ? WrapAlignment.end : WrapAlignment.start,
           spacing: 10,
           runSpacing: 10,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -334,9 +373,9 @@ class _HomeHeader extends StatelessWidget {
                   ),
                 ),
               ],
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 18,
-                backgroundColor: Color(0xFF1B1B1B),
+                backgroundColor: theme.colorScheme.primary,
                 child: Icon(
                   Icons.person_outline,
                   color: Colors.white,
@@ -370,6 +409,10 @@ class _SearchToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final compact = screenWidth < 640;
+    final searchWidth = compact ? screenWidth - 60 : 320.0;
+    final sortWidth = compact ? screenWidth - 60 : 200.0;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -380,7 +423,7 @@ class _SearchToolbar extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             SizedBox(
-              width: 320,
+              width: searchWidth,
               child: TextField(
                 controller: searchController,
                 onChanged: onSearchChanged,
@@ -399,7 +442,7 @@ class _SearchToolbar extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 200,
+              width: sortWidth,
               child: DropdownButtonFormField<DesignSortOption>(
                 initialValue: state.sortOption,
                 isExpanded: true,
@@ -428,7 +471,7 @@ class _SearchToolbar extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onDeleteSelected,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B1B1B),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -485,6 +528,7 @@ class _HomeTable extends StatelessWidget {
         return Scrollbar(
           thumbVisibility: true,
           child: SingleChildScrollView(
+            primary: true,
             padding: const EdgeInsets.all(6),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -739,7 +783,7 @@ class _DesignTypeCard extends StatelessWidget {
             color: Theme.of(context).colorScheme.outlineVariant,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -752,7 +796,7 @@ class _DesignTypeCard extends StatelessWidget {
                   height: 38,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B1B1B),
+                    color: Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -832,7 +876,7 @@ class _HeaderIconButton extends StatelessWidget {
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1B1B),
+        color: Theme.of(context).colorScheme.primary,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, color: Colors.white, size: 18),

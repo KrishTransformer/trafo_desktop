@@ -7,6 +7,7 @@ import '../../features/authentication/presentation/login_screen.dart';
 import '../../features/authentication/presentation/sign_up_screen.dart';
 import '../../features/core_model/presentation/core_model_screen.dart';
 import '../../features/design_workspace/presentation/two_winding_screen.dart';
+import '../../features/multi_winding/presentation/multi_winding_screen.dart';
 import '../../features/fabrication/presentation/fabrication_screen.dart';
 import '../../features/files/presentation/files_screen.dart';
 import '../../features/home/domain/models/design_summary.dart';
@@ -68,6 +69,31 @@ class AppRouter {
                    GoRoute(
                      path: RoutePaths.home,
                      builder: (context, state) => const HomeScreen(),
+                   ),
+                 ],
+               ),
+               StatefulShellBranch(
+                 routes: [
+                   GoRoute(
+                     path: RoutePaths.multiWindings,
+                     builder: (context, state) => MultiWindingScreen(
+                       routeDesignId: 'new',
+                       initialDesignSummary: state.extra is DesignSummary
+                           ? state.extra as DesignSummary
+                           : null,
+                     ),
+                     routes: [
+                       GoRoute(
+                         path: ':designId',
+                         builder: (context, state) => MultiWindingScreen(
+                           routeDesignId:
+                               state.pathParameters['designId'] ?? 'new',
+                           initialDesignSummary: state.extra is DesignSummary
+                               ? state.extra as DesignSummary
+                               : null,
+                         ),
+                       ),
+                     ],
                    ),
                  ],
                ),

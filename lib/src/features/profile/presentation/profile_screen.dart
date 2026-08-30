@@ -125,34 +125,48 @@ class _ReadView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Profile',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 620;
+            return Flex(
+              direction: stacked ? Axis.vertical : Axis.horizontal,
+              crossAxisAlignment: stacked
+                  ? CrossAxisAlignment.stretch
+                  : CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  fit: stacked ? FlexFit.loose : FlexFit.tight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Profile',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${state.profile.stringAt('primaryContact.designation')}, ${state.profile.stringAt('primaryContact.companyName')}',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${state.profile.stringAt('primaryContact.designation')}, ${state.profile.stringAt('primaryContact.companyName')}',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                ),
+                SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
+                Align(
+                  alignment: stacked ? Alignment.centerRight : Alignment.center,
+                  child: FilledButton.icon(
+                    onPressed: controller.startEditing,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit'),
                   ),
-                ],
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: controller.startEditing,
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit'),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 18),
         _SurfaceCard(
@@ -182,82 +196,44 @@ class _ReadView extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _SurfaceCard(
-                  child: _SectionList(
-                    title: 'Primary Contact',
-                    rows: <MapEntry<String, String>>[
-                      MapEntry(
-                        'Company Name',
-                        state.profile.stringAt(
-                          'primaryContact.companyName',
-                          fallback: 'N/A',
-                        ),
-                      ),
-                      MapEntry(
-                        'Designation',
-                        state.profile.stringAt(
-                          'primaryContact.designation',
-                          fallback: 'N/A',
-                        ),
-                      ),
-                      MapEntry(
-                        'Email',
-                        state.profile.stringAt(
-                          'primaryContact.email',
-                          fallback: 'N/A',
-                        ),
-                      ),
-                      MapEntry(
-                        'Phone',
-                        state.profile.stringAt(
-                          'primaryContact.phone',
-                          fallback: 'N/A',
-                        ),
-                      ),
-                    ],
-                  ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 700;
+              final primaryContact = _SurfaceCard(
+                child: _SectionList(
+                  title: 'Primary Contact',
+                  rows: <MapEntry<String, String>>[
+                    MapEntry('Company Name', state.profile.stringAt('primaryContact.companyName', fallback: 'N/A')),
+                    MapEntry('Designation', state.profile.stringAt('primaryContact.designation', fallback: 'N/A')),
+                    MapEntry('Email', state.profile.stringAt('primaryContact.email', fallback: 'N/A')),
+                    MapEntry('Phone', state.profile.stringAt('primaryContact.phone', fallback: 'N/A')),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: _SurfaceCard(
-                  child: _SectionList(
-                    title: 'Address',
-                    rows: <MapEntry<String, String>>[
-                      MapEntry(
-                        'State',
-                        state.profile.stringAt(
-                          'Address.state',
-                          fallback: 'N/A',
-                        ),
-                      ),
-                      MapEntry(
-                        'City',
-                        state.profile.stringAt('Address.city', fallback: 'N/A'),
-                      ),
-                      MapEntry(
-                        'Address',
-                        state.profile.stringAt(
-                          'Address.address',
-                          fallback: 'N/A',
-                        ),
-                      ),
-                      MapEntry(
-                        'Pincode',
-                        state.profile.stringAt(
-                          'Address.pincode',
-                          fallback: 'N/A',
-                        ),
-                      ),
-                    ],
-                  ),
+              );
+              final address = _SurfaceCard(
+                child: _SectionList(
+                  title: 'Address',
+                  rows: <MapEntry<String, String>>[
+                    MapEntry('State', state.profile.stringAt('Address.state', fallback: 'N/A')),
+                    MapEntry('City', state.profile.stringAt('Address.city', fallback: 'N/A')),
+                    MapEntry('Address', state.profile.stringAt('Address.address', fallback: 'N/A')),
+                    MapEntry('Pincode', state.profile.stringAt('Address.pincode', fallback: 'N/A')),
+                  ],
                 ),
-              ),
-            ],
+              );
+              return SingleChildScrollView(
+                child: stacked
+                    ? Column(children: [primaryContact, const SizedBox(height: 18), address])
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: primaryContact),
+                          const SizedBox(width: 18),
+                          Expanded(child: address),
+                        ],
+                      ),
+              );
+            },
           ),
         ),
       ],
@@ -284,28 +260,44 @@ class _EditView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Edit Profile',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 620;
+            return Flex(
+              direction: stacked ? Axis.vertical : Axis.horizontal,
+              crossAxisAlignment:
+                  stacked ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  fit: stacked ? FlexFit.loose : FlexFit.tight,
+                  child: Text(
+                    'Edit Profile',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: controller.cancelEditing,
-              icon: const Icon(Icons.cancel_outlined),
-              label: const Text('Cancel'),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
-              onPressed: controller.save,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Save'),
-            ),
-          ],
+                SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  alignment: stacked ? WrapAlignment.end : WrapAlignment.start,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: controller.cancelEditing,
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancel'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: controller.save,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 18),
         _SurfaceCard(
@@ -450,8 +442,14 @@ class _ProfileField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final availableWidth = MediaQuery.sizeOf(context).width - 84;
+    final constrainedWidth = availableWidth < 160
+        ? 160.0
+        : availableWidth < width
+        ? availableWidth
+        : width;
     return SizedBox(
-      width: width,
+      width: constrainedWidth,
       child: TextField(
         key: Key(label),
         controller: TextEditingController(text: value)

@@ -134,74 +134,75 @@ class _WorkspaceView extends StatelessWidget {
         _WorkspaceHeader(controller: controller, state: state),
         const SizedBox(height: 18),
         Expanded(
-          child: Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: 1280,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F0F0),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color.fromRGBO(15, 23, 42, 0.08),
-                          blurRadius: 28,
-                          offset: Offset(0, 16),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 458,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _InputCard(
-                                  controller: controller,
-                                  state: state,
-                                ),
-                                const SizedBox(height: 18),
-                                _MetricsCard(
-                                  controller: controller,
-                                  state: state,
-                                ),
-                                const SizedBox(height: 18),
-                                _StepsWorkspaceCard(
-                                  controller: controller,
-                                  state: state,
-                                ),
-                                const SizedBox(height: 18),
-                                _ActionRow(
-                                  controller: controller,
-                                  state: state,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            child: _DiagramCard(
-                              controller: controller,
-                              state: state,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 980;
+              final controls = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _InputCard(controller: controller, state: state),
+                  const SizedBox(height: 18),
+                  _MetricsCard(controller: controller, state: state),
+                  const SizedBox(height: 18),
+                  _StepsWorkspaceCard(controller: controller, state: state),
+                  const SizedBox(height: 18),
+                  _ActionRow(controller: controller, state: state),
+                ],
+              );
+              final content = DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
                   ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromRGBO(15, 23, 42, 0.08),
+                      blurRadius: 28,
+                      offset: Offset(0, 16),
+                    ),
+                  ],
                 ),
-              ),
-            ),
+                child: Padding(
+                  padding: EdgeInsets.all(stacked ? 14 : 24),
+                  child: stacked
+                      ? Column(
+                          children: [
+                            controls,
+                            const SizedBox(height: 18),
+                            _DiagramCard(controller: controller, state: state),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(width: 458, child: controls),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: _DiagramCard(
+                                controller: controller,
+                                state: state,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              );
+              return Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  primary: true,
+                  padding: const EdgeInsets.only(right: 4),
+                  child: stacked
+                      ? content
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(width: 1280, child: content),
+                        ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -218,13 +219,19 @@ class _WorkspaceHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final stacked = MediaQuery.sizeOf(context).width < 720;
     final designReference = state.designId.isNotEmpty
         ? state.designId
         : state.entityId;
 
-    return Row(
+    return Flex(
+      direction: stacked ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: stacked
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
       children: [
-        Expanded(
+        Flexible(
+          fit: stacked ? FlexFit.loose : FlexFit.tight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -250,7 +257,7 @@ class _WorkspaceHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -342,7 +349,7 @@ class _MetricsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFEBEBEB),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
@@ -409,91 +416,90 @@ class _StepsWorkspaceCard extends StatelessWidget {
                     'Calculate the core model to populate the stacking rows.',
               ),
             )
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 208),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEBEBEB),
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(8),
-                            ),
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.outlineVariant,
-                              ),
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              Expanded(child: Text('Step No')),
-                              Expanded(child: Text('Width')),
-                              Expanded(child: Text('Stack')),
-                            ],
-                          ),
-                        ),
-                        for (final step in steps)
-                          InkWell(
-                            key: ValueKey<String>(
-                              'core-step-row-${controller.displayValue(step.stepNo)}',
-                            ),
-                            onTap: () => controller.selectStep(step.stepNo),
-                            child: Container(
-                              color:
-                                  state.selectedStepNo?.toString() ==
-                                      step.stepNo?.toString()
-                                  ? Colors.white
-                                  : Colors.transparent,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      controller.displayValue(step.stepNo),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      controller.displayValue(step.width),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      controller.displayValue(step.stack),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked = constraints.maxWidth < 360;
+                final table = Container(
+                  constraints: const BoxConstraints(minHeight: 208),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant,
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 138,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(8),
+                          ),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Expanded(child: Text('Step No')),
+                            Expanded(child: Text('Width')),
+                            Expanded(child: Text('Stack')),
+                          ],
+                        ),
+                      ),
+                      for (final step in steps)
+                        InkWell(
+                          key: ValueKey<String>(
+                            'core-step-row-${controller.displayValue(step.stepNo)}',
+                          ),
+                          onTap: () => controller.selectStep(step.stepNo),
+                          child: Container(
+                            color:
+                                state.selectedStepNo?.toString() ==
+                                    step.stepNo?.toString()
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : Colors.transparent,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    controller.displayValue(step.stepNo),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    controller.displayValue(step.width),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    controller.displayValue(step.stack),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+                final editor = SizedBox(
+                  width: stacked ? double.infinity : 138,
                   child: state.selectedStepNo == null
                       ? const _EmptyPanel(message: 'Select a row to edit.')
                       : Column(
@@ -531,8 +537,20 @@ class _StepsWorkspaceCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                ),
-              ],
+                );
+                return stacked
+                    ? Column(
+                        children: [table, const SizedBox(height: 16), editor],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: table),
+                          const SizedBox(width: 16),
+                          editor,
+                        ],
+                      );
+              },
             ),
     );
   }
@@ -548,11 +566,12 @@ class _DiagramCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final steps = state.result?.bldStacks ?? const <CoreStackStep>[];
 
+    final compact = MediaQuery.sizeOf(context).width < 720;
     return SizedBox(
-      height: 640,
+      height: compact ? 430 : 640,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: Theme.of(context).colorScheme.outlineVariant,
@@ -561,8 +580,8 @@ class _DiagramCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: steps.isEmpty
-              ? const SizedBox(
-                  height: 600,
+              ? SizedBox(
+                  height: compact ? 390 : 600,
                   child: _EmptyPanel(
                     message:
                         'The diagram appears after a successful core calculation.',
@@ -580,10 +599,12 @@ class _DiagramCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
-                      height: 560,
+                      height: compact ? 350 : 560,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFAFAFA),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: Theme.of(context).colorScheme.outlineVariant,
@@ -819,12 +840,12 @@ class _CoreDiagramPainter extends CustomPainter {
     final circleRadius = math.min(radius, unitWidth * (coreDiameterValue / 2));
 
     final circlePaint = Paint()
-      ..color = const Color(0xFF223044)
+      ..color = const Color(0xFF183D54)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
     final bgGridPaint = Paint()
-      ..color = const Color(0xFFE5E7EB)
+      ..color = const Color(0xFFC5E2DF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -871,11 +892,11 @@ class _CoreDiagramPainter extends CustomPainter {
             step.stepNo?.toString() == selectedStepNo?.toString();
         final fillPaint = Paint()
           ..color = isSelected
-              ? const Color(0xFFC3C3C3)
-              : const Color(0xFFFFFFFF)
+              ? const Color(0xFFD8ECE9)
+              : const Color(0xFFFBFFFE)
           ..style = PaintingStyle.fill;
         final strokePaint = Paint()
-          ..color = const Color(0xFF223044)
+          ..color = const Color(0xFF183D54)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1;
         final rect = Rect.fromLTWH(0, step.yAxis, step.width, step.height);

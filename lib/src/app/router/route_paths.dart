@@ -5,6 +5,9 @@ abstract final class RoutePaths {
   static const String home = '/home';
   static const String twoWindings = '/2windings';
   static String twoWindingsDesign(String designId) => '$twoWindings/$designId';
+  static const String multiWindings = '/multiwindings';
+  static String multiWindingsDesign(String designId) =>
+      '$multiWindings/$designId';
   static const String core = '/core';
   static String coreDesign(String designId) => '$core/$designId';
   static const String fabrication = '/fabrication';

@@ -131,19 +131,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 16),
               const AuthFieldLabel('Email ID'),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter your email address',
-                      ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked = constraints.maxWidth < 300;
+                  final emailField = TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter your email address',
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton(
+                  );
+                  final otpButton = OutlinedButton(
                     onPressed: state.operation == AuthOperation.sendingOtp
                         ? null
                         : _sendOtp,
@@ -154,8 +151,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Get OTP'),
-                  ),
-                ],
+                  );
+                  return stacked
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            emailField,
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: otpButton,
+                            ),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: emailField),
+                            const SizedBox(width: 12),
+                            otpButton,
+                          ],
+                        );
+                },
               ),
               const SizedBox(height: 16),
               const AuthFieldLabel('OTP'),

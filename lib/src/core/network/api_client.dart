@@ -5,7 +5,8 @@ import '../storage/token_storage.dart';
 import 'api_exception.dart';
 import 'api_service.dart';
 import 'bearer_token_interceptor.dart';
-import 'unauthorized_session_interceptor.dart';
+import 'session_refresh_interceptor.dart';
+import 'token_refresh_service.dart';
 
 typedef JsonDecoder<T> = T Function(dynamic data);
 typedef UnauthorizedCallback = Future<void> Function();
@@ -15,30 +16,36 @@ class ApiClient {
     required AppEnvironment environment,
     required TokenStorage tokenStorage,
     UnauthorizedCallback? onUnauthorized,
-  }) : _clients = {
-         for (final service in ApiService.values)
-           service:
-               Dio(
-                   BaseOptions(
-                     baseUrl: environment.baseUrls
-                         .forService(service)
-                         .toString(),
-                     connectTimeout: environment.connectTimeout,
-                     receiveTimeout: environment.receiveTimeout,
-                     sendTimeout: environment.connectTimeout,
-                     responseType: ResponseType.json,
-                     headers: const {'Accept': 'application/json'},
-                   ),
-                 )
-                 ..interceptors.add(BearerTokenInterceptor(tokenStorage))
-                 ..interceptors.add(
-                   UnauthorizedSessionInterceptor(
-                     onUnauthorized ?? (() async {}),
-                   ),
-                 ),
-       };
+  }) {
+    final clients = <ApiService, Dio>{
+      for (final service in ApiService.values)
+        service: Dio(
+          BaseOptions(
+            baseUrl: environment.baseUrls.forService(service).toString(),
+            connectTimeout: environment.connectTimeout,
+            receiveTimeout: environment.receiveTimeout,
+            sendTimeout: environment.connectTimeout,
+            responseType: ResponseType.json,
+            headers: const {'Accept': 'application/json'},
+          ),
+        ),
+    };
+    final refreshService = TokenRefreshService(
+      commonClient: clients[ApiService.common]!,
+      tokenStorage: tokenStorage,
+    );
+    for (final client in clients.values) {
+      client.interceptors.add(BearerTokenInterceptor(tokenStorage));
+      client.interceptors.add(SessionRefreshInterceptor(
+        client: client,
+        tokenRefreshService: refreshService,
+        onRefreshFailure: onUnauthorized ?? (() async {}),
+      ));
+    }
+    _clients = clients;
+  }
 
-  final Map<ApiService, Dio> _clients;
+  late final Map<ApiService, Dio> _clients;
 
   Dio clientFor(ApiService service) => _clients[service]!;
 

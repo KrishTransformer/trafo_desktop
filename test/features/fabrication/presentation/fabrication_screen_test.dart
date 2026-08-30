@@ -146,6 +146,75 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('fabrication tabs expose the payload-backed parity fields', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1366, 768);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = FabricationController(
+      routeId: 'entity-11',
+      calculationRepository: _FakeFabricationCalculationRepository(),
+      designRepository: _FakeFabricationDesignRepository(),
+      cadRepository: _FakeFabricationCadRepository(),
+      drawingsStatusRepository: _FakeDrawingsStatusRepository(),
+    );
+
+    await tester.pumpWidget(
+      _buildScreen(
+        controller: controller,
+        summary: const DesignSummary(
+          id: 'entity-11',
+          designId: '100k-12345',
+          twoWindings: '{"designId":"100k-12345"}',
+          fabrication:
+              '{"tank":{"tank_L":900},"radiator":{"radiator_Vlv":"rv1"},"roller":{"roller_Guage":"wide"},"hvb":{"hvb_Pos":"tank","hvb_Volt":11000,"hvb_Amp":15},"lvb":{"lvb_Pos":"lid","lvb_Volt":433,"lvb_Amp":140},"gorPipe":{"buchholz_Relay":true,"single_Valve":true,"valve_Type1":true},"exp_Vent":{"exp_Vent":true,"exp_Vent_With_OI":true,"exp_Vent_ID":"E1"},"restOfVariables":{"designId":"100k-12345","mbox":"MBOX","mbox_Inst_Nos":"2","thrmo_Syphn":"TS-1"}}',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Radiator Valve'), findsOneWidget);
+
+    final tankTab = find.byKey(
+      const ValueKey<String>('fabrication-tab-Tank'),
+    );
+    await tester.ensureVisible(tankTab);
+    await tester.tap(tankTab);
+    await tester.pumpAndSettle();
+    expect(find.text('Roller Gauge'), findsOneWidget);
+
+    final accessories2Tab = find.byKey(
+      const ValueKey<String>('fabrication-tab-Accessories (2)'),
+    );
+    await tester.ensureVisible(accessories2Tab);
+    await tester.tap(accessories2Tab);
+    await tester.pumpAndSettle();
+    expect(find.text('Single Valve'), findsOneWidget);
+    expect(find.text('Valve Type 1'), findsOneWidget);
+
+    final terminalsTab = find.byKey(
+      const ValueKey<String>('fabrication-tab-Terminals'),
+    );
+    await tester.ensureVisible(terminalsTab);
+    await tester.tap(terminalsTab);
+    await tester.pumpAndSettle();
+    expect(find.text('HV Position'), findsOneWidget);
+    expect(find.text('LV Position'), findsOneWidget);
+
+    final miscTab = find.byKey(
+      const ValueKey<String>('fabrication-tab-Misc'),
+    );
+    await tester.ensureVisible(miscTab);
+    await tester.tap(miscTab);
+    await tester.pumpAndSettle();
+    expect(find.text('Expansion Vent With OI'), findsOneWidget);
+    expect(find.text('Marshalling Inst. Nos'), findsOneWidget);
+    expect(find.text('Thermo Syphon'), findsOneWidget);
+  });
 }
 
 Widget _buildScreen({

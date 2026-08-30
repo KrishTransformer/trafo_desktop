@@ -1,11 +1,15 @@
 import 'package:flutter/foundation.dart';
 
+enum DesignType { twoWinding, multiWinding }
+
 @immutable
 class DesignSummary {
   const DesignSummary({
     required this.id,
     required this.designId,
+    this.designType,
     this.twoWindings,
+    this.multiWindings,
     this.core,
     this.fabrication,
     this.lom,
@@ -18,7 +22,9 @@ class DesignSummary {
     return DesignSummary(
       id: _readRequiredString(json, 'id'),
       designId: _readRequiredString(json, 'designId'),
+      designType: _readOptionalString(json, 'designType'),
       twoWindings: json['twoWindings'],
+      multiWindings: json['multiWindings'],
       core: json['core'],
       fabrication: json['fabrication'],
       lom: json['lom'],
@@ -30,7 +36,9 @@ class DesignSummary {
 
   final String id;
   final String designId;
+  final String? designType;
   final Object? twoWindings;
+  final Object? multiWindings;
   final Object? core;
   final Object? fabrication;
   final Object? lom;
@@ -42,7 +50,9 @@ class DesignSummary {
     return <String, dynamic>{
       'id': id,
       'designId': designId,
+      if (designType != null) 'designType': designType,
       'twoWindings': twoWindings,
+      if (multiWindings != null) 'multiWindings': multiWindings,
       'core': core,
       'fabrication': fabrication,
       'lom': lom,
@@ -51,6 +61,22 @@ class DesignSummary {
       if (ownerId != null) 'ownerId': ownerId,
     };
   }
+
+  DesignType get type {
+    if (designType?.trim().toLowerCase() == 'multi') {
+      return DesignType.multiWinding;
+    }
+
+    // Older MultiWdg records did not have an explicit design type.
+    if ((designType == null || designType!.trim().isEmpty) &&
+        _hasValue(multiWindings)) {
+      return DesignType.multiWinding;
+    }
+
+    return DesignType.twoWinding;
+  }
+
+  bool get isMultiWinding => type == DesignType.multiWinding;
 
   static String _readRequiredString(Map<String, dynamic> json, String key) {
     final value = json[key];
@@ -64,5 +90,13 @@ class DesignSummary {
   static String? _readOptionalString(Map<String, dynamic> json, String key) {
     final value = json[key];
     return value is String && value.isNotEmpty ? value : null;
+  }
+
+  static bool _hasValue(Object? value) {
+    return switch (value) {
+      null => false,
+      String value => value.trim().isNotEmpty,
+      _ => true,
+    };
   }
 }

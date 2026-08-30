@@ -67,29 +67,29 @@ class AppEnvironment {
           isProduction: isProduction,
           devKey: 'DEV_CORE_SERVICE_URL',
           prodKey: 'PROD_CORE_SERVICE_URL',
-          devFallback: 'http://127.0.0.1:8080',
-          prodFallback: 'https://core.trafointel.invalid',
+          devFallback: _defaultCoreServiceUrl(),
+          prodFallback: _defaultCoreServiceUrl(),
         ),
         cad: _resolveUri(
           isProduction: isProduction,
           devKey: 'DEV_CAD_SERVICE_URL',
           prodKey: 'PROD_CAD_SERVICE_URL',
-          devFallback: 'http://127.0.0.1:8080',
-          prodFallback: 'https://cad.trafointel.invalid',
+          devFallback: 'https://tf-cad-service.trafointel.com',
+          prodFallback: 'https://tf-cad-service.trafointel.com',
         ),
         multiWinding: _resolveUri(
           isProduction: isProduction,
           devKey: 'DEV_MULTI_WDG_SERVICE_URL',
           prodKey: 'PROD_MULTI_WDG_SERVICE_URL',
-          devFallback: 'http://127.0.0.1:8081',
-          prodFallback: 'https://multiwdg.trafointel.invalid',
+          devFallback: 'https://multiwdg-backend.trafointel.com',
+          prodFallback: 'https://multiwdg-backend.trafointel.com',
         ),
         storage: _resolveUri(
           isProduction: isProduction,
           devKey: 'DEV_STORAGE_SERVICE_URL',
           prodKey: 'PROD_STORAGE_SERVICE_URL',
-          devFallback: 'http://127.0.0.1:8080',
-          prodFallback: 'https://storage.trafointel.invalid',
+          devFallback: _defaultCommonServiceUrl(),
+          prodFallback: _defaultCommonServiceUrl(),
         ),
       ),
       connectTimeout: const Duration(seconds: 20),
@@ -123,5 +123,14 @@ class AppEnvironment {
     );
 
     return 'https://tf-common-service.trafointel.com/tf/api/$tenantHost';
+  }
+
+  static String _defaultCoreServiceUrl() {
+    const tenantHost = String.fromEnvironment(
+      'COMMON_SERVICE_TENANT_HOST',
+      defaultValue: 'design.trafointel.com',
+    );
+
+    return 'https://tf-core-service.trafointel.com/tf/api/$tenantHost';
   }
 }

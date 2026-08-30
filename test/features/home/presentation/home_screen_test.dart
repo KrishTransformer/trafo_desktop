@@ -78,6 +78,62 @@ void main() {
     expect(find.text('DES-0001'), findsOneWidget);
     expect(find.text('DES-0020'), findsOneWidget);
   });
+
+  testWidgets('new design dialog offers both two- and multi-winding flows', (
+    tester,
+  ) async {
+    final tokenStorage = _InMemoryTokenStorage();
+    final environment = AppEnvironment(
+      flavor: AppFlavor.development,
+      baseUrls: ServiceBaseUrls(
+        common: Uri(scheme: 'https', host: 'common.example.com'),
+        core: Uri(scheme: 'https', host: 'core.example.com'),
+        cad: Uri(scheme: 'https', host: 'cad.example.com'),
+        multiWinding: Uri(scheme: 'https', host: 'multi.example.com'),
+        storage: Uri(scheme: 'https', host: 'storage.example.com'),
+      ),
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 30),
+    );
+    final apiClient = ApiClient(
+      environment: environment,
+      tokenStorage: tokenStorage,
+    );
+    final authController = AuthController(
+      authRepository: _FakeAuthRepository(),
+      configRepository: _FakeConfigRepository(),
+      tokenStorage: tokenStorage,
+    );
+    final homeController = HomeController(
+      designRepository: _FakeDesignRepository(),
+      tokenStorage: tokenStorage,
+    );
+    await authController.initialize();
+
+    await tester.pumpWidget(
+      AppScope(
+        dependencies: AppDependencies(
+          environment: environment,
+          apiClient: apiClient,
+          tokenStorage: tokenStorage,
+          authController: authController,
+          homeController: homeController,
+        ),
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(width: 960, height: 540, child: HomeScreen()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('New Design'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open 2 Winding'), findsOneWidget);
+    expect(find.text('Open Multi Winding'), findsOneWidget);
+  });
 }
 
 class _FakeDesignRepository implements DesignRepository {

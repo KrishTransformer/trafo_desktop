@@ -139,66 +139,88 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                     ),
                     const SizedBox(height: 18),
                     Expanded(
-                      child: Scrollbar(
-                        thumbVisibility: true,
-                        child: SingleChildScrollView(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minWidth: 1320),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  SizedBox(
-                                    width: 400,
-                                    child: _PartOneColumn(
-                                      state: state,
-                                      controller: controller,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  SizedBox(
-                                    width: 460,
-                                    child: _PartTwoColumn(
-                                      state: state,
-                                      controller: controller,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  SizedBox(
-                                    width: 400,
-                                    child: Column(
-                                      children: [
-                                        _ClearanceCard(
-                                          state: state,
-                                          controller: controller,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        _CommentsCard(
-                                          theme: theme,
-                                          persistentComments:
-                                              persistentComments,
-                                          hoveredComment: hoveredComment,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        _MoreInfoCard(
-                                          selectedTabIndex: _selectedDetailsTab,
-                                          onTabSelected: (index) {
-                                            setState(() {
-                                              _selectedDetailsTab = index;
-                                            });
-                                          },
-                                          state: state,
-                                          controller: controller,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final stacked = constraints.maxWidth < 1180;
+                          final sideColumn = Column(
+                            children: [
+                              _ClearanceCard(
+                                state: state,
+                                controller: controller,
                               ),
+                              const SizedBox(height: 16),
+                              _CommentsCard(
+                                theme: theme,
+                                persistentComments: persistentComments,
+                                hoveredComment: hoveredComment,
+                              ),
+                              const SizedBox(height: 16),
+                              _MoreInfoCard(
+                                selectedTabIndex: _selectedDetailsTab,
+                                onTabSelected: (index) =>
+                                    setState(() => _selectedDetailsTab = index),
+                                state: state,
+                                controller: controller,
+                              ),
+                            ],
+                          );
+                          final content = stacked
+                              ? Column(
+                                  children: [
+                                    _PartOneColumn(
+                                      state: state,
+                                      controller: controller,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _PartTwoColumn(
+                                      state: state,
+                                      controller: controller,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    sideColumn,
+                                  ],
+                                )
+                              : Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 400,
+                                      child: _PartOneColumn(
+                                        state: state,
+                                        controller: controller,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    SizedBox(
+                                      width: 460,
+                                      child: _PartTwoColumn(
+                                        state: state,
+                                        controller: controller,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    SizedBox(width: 400, child: sideColumn),
+                                  ],
+                                );
+                          return Scrollbar(
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                              primary: true,
+                              padding: const EdgeInsets.only(right: 4),
+                              child: stacked
+                                  ? content
+                                  : SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          minWidth: 1320,
+                                        ),
+                                        child: content,
+                                      ),
+                                    ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -248,10 +270,16 @@ class _WorkspaceHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final stacked = MediaQuery.sizeOf(context).width < 760;
 
-    return Row(
+    return Flex(
+      direction: stacked ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: stacked
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
       children: [
-        Expanded(
+        Flexible(
+          fit: stacked ? FlexFit.loose : FlexFit.tight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -279,29 +307,34 @@ class _WorkspaceHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 16),
-        OutlinedButton.icon(
-          onPressed: canOpenCore ? onOpenCore : null,
-          icon: const Icon(Icons.donut_large_outlined),
-          label: const Text('Open Core'),
-        ),
-        const SizedBox(width: 12),
-        OutlinedButton.icon(
-          onPressed: onReset,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Reset'),
-        ),
-        const SizedBox(width: 12),
-        FilledButton.icon(
-          onPressed: isCalculating ? null : onCalculate,
-          icon: isCalculating
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.calculate_outlined),
-          label: Text(isCalculating ? 'Calculating' : 'Calculate'),
+        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          alignment: stacked ? WrapAlignment.end : WrapAlignment.start,
+          children: [
+            OutlinedButton.icon(
+              onPressed: canOpenCore ? onOpenCore : null,
+              icon: const Icon(Icons.donut_large_outlined),
+              label: const Text('Open Core'),
+            ),
+            OutlinedButton.icon(
+              onPressed: onReset,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reset'),
+            ),
+            FilledButton.icon(
+              onPressed: isCalculating ? null : onCalculate,
+              icon: isCalculating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.calculate_outlined),
+              label: Text(isCalculating ? 'Calculating' : 'Calculate'),
+            ),
+          ],
         ),
       ],
     );
@@ -390,6 +423,20 @@ class _PartOneColumn extends StatelessWidget {
                     items: const <String>['Dyn11', 'Dd0', 'Yyn0', 'Yd11'],
                     onChanged: (value) =>
                         controller.setField('vectorGroup', value),
+                  ),
+                  _dropdownField(
+                    context,
+                    label: 'LV Limbs',
+                    value: state.design.stringAt('lVLimbs'),
+                    items: const <String>['Series', 'Parallel'],
+                    onChanged: (value) => controller.setField('lVLimbs', value),
+                  ),
+                  _dropdownField(
+                    context,
+                    label: 'HV Limbs',
+                    value: state.design.stringAt('hVLimbs'),
+                    items: const <String>['Series', 'Parallel'],
+                    onChanged: (value) => controller.setField('hVLimbs', value),
                   ),
                   _textField(
                     label: 'Build Factor',
@@ -496,8 +543,19 @@ class _PartOneColumn extends StatelessWidget {
                   'NipM3',
                   'NipM4',
                   'NipM5',
+                  'NipM6',
                   'CRNO',
                   'CRGO',
+                  'AksAK LC-M2',
+                  'AksAK LC-M3',
+                  'AksAK C-M3',
+                  'AksAK C-M4',
+                  'AksAK C-M5',
+                  'AksAK C-M6',
+                  'AksAK H-0DR',
+                  'AksAK H-1DR',
+                  'AksAK H-2DR',
+                  'AksAK H-2C',
                 ],
                 onChanged: (value) =>
                     controller.setField('core.coreMaterial', value),
@@ -1140,6 +1198,20 @@ class _TankCoolingTab extends StatelessWidget {
             value: state.design.boolAt('isCSP'),
             onChanged: (value) => controller.setField('isCSP', value),
           ),
+          if (state.design
+              .stringAt('tankAndOilFormulas.coolingStatement')
+              .isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                state.design.stringAt('tankAndOilFormulas.coolingStatement'),
+              ),
+            ),
         ],
         const SizedBox(height: 12),
         _ReadOnlySummary(

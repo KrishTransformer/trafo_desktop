@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -24,11 +25,13 @@ class FabricationController extends ChangeNotifier {
     required FabricationDesignRepository designRepository,
     required FabricationCadRepository cadRepository,
     required DrawingsStatusRepository drawingsStatusRepository,
+    Duration statusAutoRefreshInterval = const Duration(seconds: 5),
   }) : _routeId = routeId,
        _calculationRepository = calculationRepository,
        _designRepository = designRepository,
        _cadRepository = cadRepository,
        _drawingsStatusRepository = drawingsStatusRepository,
+       _statusAutoRefreshInterval = statusAutoRefreshInterval,
        _state = FabricationState.initial(routeId: routeId);
 
   final String _routeId;
@@ -36,8 +39,10 @@ class FabricationController extends ChangeNotifier {
   final FabricationDesignRepository _designRepository;
   final FabricationCadRepository _cadRepository;
   final DrawingsStatusRepository _drawingsStatusRepository;
+  final Duration _statusAutoRefreshInterval;
 
   FabricationState _state;
+  Timer? _statusRefreshTimer;
 
   FabricationState get state => _state;
 
@@ -118,12 +123,14 @@ class FabricationController extends ChangeNotifier {
       return;
     }
     _setState(_state.copyWith(isStatusDrawerOpen: true));
+    _startStatusWatcher();
   }
 
   void closeStatusDrawer() {
     if (!_state.isStatusDrawerOpen) {
       return;
     }
+    _stopStatusWatcher();
     _setState(_state.copyWith(isStatusDrawerOpen: false));
   }
 
@@ -336,6 +343,12 @@ class FabricationController extends ChangeNotifier {
         ),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _stopStatusWatcher();
+    super.dispose();
   }
 
   FabricationCalculationResult _buildSeededFormData({
@@ -726,6 +739,22 @@ class FabricationController extends ChangeNotifier {
       return '';
     }
     return value.toString();
+  }
+
+  void _startStatusWatcher() {
+    if (_state.designId.isEmpty || _statusRefreshTimer != null) {
+      return;
+    }
+
+    unawaited(refreshStatuses(silent: true));
+    _statusRefreshTimer = Timer.periodic(_statusAutoRefreshInterval, (_) {
+      unawaited(refreshStatuses(silent: true));
+    });
+  }
+
+  void _stopStatusWatcher() {
+    _statusRefreshTimer?.cancel();
+    _statusRefreshTimer = null;
   }
 
   void _setState(FabricationState nextState) {

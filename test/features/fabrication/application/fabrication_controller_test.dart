@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:trafo_desktop/src/features/fabrication/application/fabrication_controller.dart';
@@ -347,6 +348,102 @@ void main() {
       );
     },
   );
+
+  test('status watcher refreshes while drawer is open and stops when closed', () {
+    fakeAsync((async) {
+      final statusRepository = _FakeDrawingsStatusRepository(
+        currentEntries: <DrawingsStatusEntry>[
+          DrawingsStatusEntry.fromJson(const <String, dynamic>{
+            'id': 'status-1',
+            'designId': '100k-12345',
+            'message': 'Queued',
+            'status': 'Processing',
+            'createdAt': '2026-07-16T09:00:00.000Z',
+          }),
+        ],
+      );
+      final controller = FabricationController(
+        routeId: 'entity-12',
+        calculationRepository: _FakeFabricationCalculationRepository(),
+        designRepository: _FakeFabricationDesignRepository(),
+        cadRepository: _FakeFabricationCadRepository(),
+        drawingsStatusRepository: statusRepository,
+        statusAutoRefreshInterval: const Duration(seconds: 2),
+      );
+
+      controller.initialize(
+        initialSummary: const DesignSummary(
+          id: 'entity-12',
+          designId: '100k-12345',
+          twoWindings: '{"designId":"100k-12345"}',
+          fabrication:
+              '{"tank":{"tank_L":900},"restOfVariables":{"designId":"100k-12345"}}',
+        ),
+      );
+      async.flushMicrotasks();
+      final initialFetchCount = statusRepository.fetchDesignIds.length;
+
+      controller.openStatusDrawer();
+      async.flushMicrotasks();
+      expect(statusRepository.fetchDesignIds.length, initialFetchCount + 1);
+
+      async.elapse(const Duration(seconds: 5));
+      async.flushMicrotasks();
+      expect(statusRepository.fetchDesignIds.length, initialFetchCount + 3);
+
+      controller.closeStatusDrawer();
+      async.elapse(const Duration(seconds: 5));
+      async.flushMicrotasks();
+      expect(statusRepository.fetchDesignIds.length, initialFetchCount + 3);
+    });
+  });
+
+  test('status watcher stops when the controller is disposed', () {
+    fakeAsync((async) {
+      final statusRepository = _FakeDrawingsStatusRepository(
+        currentEntries: <DrawingsStatusEntry>[
+          DrawingsStatusEntry.fromJson(const <String, dynamic>{
+            'id': 'status-1',
+            'designId': '100k-12345',
+            'message': 'Queued',
+            'status': 'Processing',
+            'createdAt': '2026-07-16T09:00:00.000Z',
+          }),
+        ],
+      );
+      final controller = FabricationController(
+        routeId: 'entity-13',
+        calculationRepository: _FakeFabricationCalculationRepository(),
+        designRepository: _FakeFabricationDesignRepository(),
+        cadRepository: _FakeFabricationCadRepository(),
+        drawingsStatusRepository: statusRepository,
+        statusAutoRefreshInterval: const Duration(seconds: 2),
+      );
+
+      controller.initialize(
+        initialSummary: const DesignSummary(
+          id: 'entity-13',
+          designId: '100k-12345',
+          twoWindings: '{"designId":"100k-12345"}',
+          fabrication:
+              '{"tank":{"tank_L":900},"restOfVariables":{"designId":"100k-12345"}}',
+        ),
+      );
+      async.flushMicrotasks();
+
+      controller.openStatusDrawer();
+      async.flushMicrotasks();
+      final fetchCountBeforeDispose = statusRepository.fetchDesignIds.length;
+
+      controller.dispose();
+      async.elapse(const Duration(seconds: 5));
+      async.flushMicrotasks();
+      expect(
+        statusRepository.fetchDesignIds.length,
+        fetchCountBeforeDispose,
+      );
+    });
+  });
 }
 
 class _FakeFabricationCalculationRepository

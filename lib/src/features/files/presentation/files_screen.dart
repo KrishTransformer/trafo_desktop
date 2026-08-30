@@ -5,6 +5,7 @@ import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../home/domain/models/design_summary.dart';
 import '../application/files_controller.dart';
+import '../application/files_export_service.dart';
 import '../application/files_state.dart';
 import '../data/repositories/http_files_design_repository.dart';
 import '../data/repositories/http_files_lom_repository.dart';
@@ -16,12 +17,14 @@ class FilesScreen extends StatefulWidget {
     required this.routeDesignId,
     this.initialDesignSummary,
     this.controller,
+    this.exportService,
     super.key,
   });
 
   final String routeDesignId;
   final DesignSummary? initialDesignSummary;
   final FilesController? controller;
+  final FilesExportService? exportService;
 
   @override
   State<FilesScreen> createState() => _FilesScreenState();
@@ -29,6 +32,7 @@ class FilesScreen extends StatefulWidget {
 
 class _FilesScreenState extends State<FilesScreen> {
   FilesController? _controller;
+  FilesExportService? _exportService;
   bool _ownsController = false;
   String _lastErrorMessage = '';
   final TextEditingController _searchController = TextEditingController();
@@ -52,6 +56,7 @@ class _FilesScreenState extends State<FilesScreen> {
     final controller = widget.controller ?? _buildControllerFromScope(context);
     _ownsController = widget.controller == null;
     controller.addListener(_handleControllerChange);
+    _exportService ??= widget.exportService ?? FilesExportService();
     if (!controller.state.isInitialized) {
       controller.initialize(initialSummary: widget.initialDesignSummary);
     }
@@ -194,10 +199,24 @@ class _FilesScreenState extends State<FilesScreen> {
     }
   }
 
-  void _showExportPendingMessage(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label export is pending migration.')),
-    );
+  Future<void> _handleExportAction(BuildContext context, String label) async {
+    final controller = _controller;
+    final exportService = _exportService;
+    if (controller == null || exportService == null) {
+      return;
+    }
+
+    try {
+      await exportService.exportByLabel(label: label, state: controller.state);
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      await AppErrorDialog.show(
+        context,
+        message: 'Unable to open $label. ${error.toString()}',
+      );
+    }
   }
 
   @override
@@ -239,7 +258,7 @@ class _FilesScreenState extends State<FilesScreen> {
                     rateController: _rateController,
                     onAddCustomItem: _addCustomItem,
                     onEditRate: _editRate,
-                    onExportPressed: _showExportPendingMessage,
+                    onExportPressed: _handleExportAction,
                   )
                 : _FilesEmptyState(routeId: widget.routeDesignId),
           ),
@@ -287,7 +306,8 @@ class _WorkspaceView extends StatelessWidget {
     required int rowIndex,
   })
   onEditRate;
-  final void Function(BuildContext context, String label) onExportPressed;
+  final Future<void> Function(BuildContext context, String label)
+  onExportPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -315,54 +335,64 @@ class _WorkspaceView extends StatelessWidget {
         _WorkspaceHeader(controller: controller, state: state),
         const SizedBox(height: 18),
         Expanded(
-          child: Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 1360),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 1020,
-                        child: Column(
-                          children: [
-                            _CustomerCard(controller: controller, state: state),
-                            const SizedBox(height: 16),
-                            _DetailsCard(
-                              controller: controller,
-                              state: state,
-                              searchController: searchController,
-                              onSearchChanged: onSearchChanged,
-                              filteredRows: filteredRows,
-                              showAddItemForm: showAddItemForm,
-                              onToggleAddItemForm: onToggleAddItemForm,
-                              descriptionController: descriptionController,
-                              specificationController: specificationController,
-                              unitController: unitController,
-                              quantityController: quantityController,
-                              rateController: rateController,
-                              onAddCustomItem: onAddCustomItem,
-                              onEditRate: onEditRate,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      SizedBox(
-                        width: 320,
-                        child: _ActionPanel(
-                          state: state,
-                          onExportPressed: onExportPressed,
-                        ),
-                      ),
-                    ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 1120;
+              final document = Column(
+                children: [
+                  _CustomerCard(controller: controller, state: state),
+                  const SizedBox(height: 16),
+                  _DetailsCard(
+                    controller: controller,
+                    state: state,
+                    searchController: searchController,
+                    onSearchChanged: onSearchChanged,
+                    filteredRows: filteredRows,
+                    showAddItemForm: showAddItemForm,
+                    onToggleAddItemForm: onToggleAddItemForm,
+                    descriptionController: descriptionController,
+                    specificationController: specificationController,
+                    unitController: unitController,
+                    quantityController: quantityController,
+                    rateController: rateController,
+                    onAddCustomItem: onAddCustomItem,
+                    onEditRate: onEditRate,
                   ),
+                ],
+              );
+              final actions = _ActionPanel(
+                state: state,
+                onExportPressed: onExportPressed,
+              );
+              final content = stacked
+                  ? Column(
+                      children: [document, const SizedBox(height: 16), actions],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 1020, child: document),
+                        const SizedBox(width: 20),
+                        SizedBox(width: 320, child: actions),
+                      ],
+                    );
+              return Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  primary: true,
+                  padding: const EdgeInsets.only(right: 4),
+                  child: stacked
+                      ? content
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 1360),
+                            child: content,
+                          ),
+                        ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -383,9 +413,16 @@ class _WorkspaceHeader extends StatelessWidget {
         ? state.designId
         : state.entityId;
 
-    return Row(
+    final stacked = MediaQuery.sizeOf(context).width < 720;
+
+    return Flex(
+      direction: stacked ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: stacked
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
       children: [
-        Expanded(
+        Flexible(
+          fit: stacked ? FlexFit.loose : FlexFit.tight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -405,16 +442,23 @@ class _WorkspaceHeader extends StatelessWidget {
             ],
           ),
         ),
-        FilledButton.icon(
-          onPressed: state.isBusy ? null : controller.refreshLom,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Refresh LOM'),
-        ),
-        const SizedBox(width: 12),
-        FilledButton.icon(
-          onPressed: state.isBusy ? null : controller.saveDesign,
-          icon: const Icon(Icons.save_outlined),
-          label: const Text('Save Design'),
+        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          alignment: stacked ? WrapAlignment.end : WrapAlignment.start,
+          children: [
+            FilledButton.icon(
+              onPressed: state.isBusy ? null : controller.refreshLom,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh LOM'),
+            ),
+            FilledButton.icon(
+              onPressed: state.isBusy ? null : controller.saveDesign,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save Design'),
+            ),
+          ],
         ),
       ],
     );
@@ -457,26 +501,31 @@ class _CustomerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _CustomerField(
-                  label: 'Customer Name',
-                  value: state.customerName,
-                  isEditing: state.isCustomerEditing,
-                  onChanged: controller.updateCustomerName,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _CustomerField(
-                  label: 'Customer Place',
-                  value: state.customerPlace,
-                  isEditing: state.isCustomerEditing,
-                  onChanged: controller.updateCustomerPlace,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 560;
+              final name = _CustomerField(
+                label: 'Customer Name',
+                value: state.customerName,
+                isEditing: state.isCustomerEditing,
+                onChanged: controller.updateCustomerName,
+              );
+              final place = _CustomerField(
+                label: 'Customer Place',
+                value: state.customerPlace,
+                isEditing: state.isCustomerEditing,
+                onChanged: controller.updateCustomerPlace,
+              );
+              return stacked
+                  ? Column(children: [name, const SizedBox(height: 12), place])
+                  : Row(
+                      children: [
+                        Expanded(child: name),
+                        const SizedBox(width: 16),
+                        Expanded(child: place),
+                      ],
+                    );
+            },
           ),
         ],
       ),
@@ -581,18 +630,17 @@ class _DetailsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Details',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 520;
+              final title = Text(
+                'Details',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
-              ),
-              SizedBox(
-                width: 280,
+              );
+              final search = SizedBox(
+                width: stacked ? double.infinity : 280,
                 child: TextField(
                   controller: searchController,
                   onChanged: onSearchChanged,
@@ -603,8 +651,19 @@ class _DetailsCard extends StatelessWidget {
                     isDense: true,
                   ),
                 ),
-              ),
-            ],
+              );
+              return stacked
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [title, const SizedBox(height: 12), search],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: title),
+                        search,
+                      ],
+                    );
+            },
           ),
           const SizedBox(height: 16),
           _AccordionSection(
@@ -614,7 +673,11 @@ class _DetailsCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       '${state.displayRows.length} items',
@@ -622,7 +685,6 @@ class _DetailsCard extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const Spacer(),
                     OutlinedButton.icon(
                       onPressed: onToggleAddItemForm,
                       icon: Icon(
@@ -760,6 +822,60 @@ class _AddCustomItemForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final description = TextField(
+      key: const Key('files_add_description'),
+      controller: descriptionController,
+      decoration: const InputDecoration(
+        labelText: 'Description',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+    final specification = TextField(
+      key: const Key('files_add_specification'),
+      controller: specificationController,
+      decoration: const InputDecoration(
+        labelText: 'Specification',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+    final unit = TextField(
+      key: const Key('files_add_unit'),
+      controller: unitController,
+      decoration: const InputDecoration(
+        labelText: 'Unit',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+    final quantity = TextField(
+      key: const Key('files_add_quantity'),
+      controller: quantityController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: const InputDecoration(
+        labelText: 'Quantity',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+    final rate = TextField(
+      key: const Key('files_add_rate'),
+      controller: rateController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: const InputDecoration(
+        labelText: 'Rate',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+    final submit = FilledButton.icon(
+      key: const Key('files_add_submit'),
+      onPressed: onSubmit,
+      icon: const Icon(Icons.add),
+      label: const Text('Add Item'),
+    );
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFF7F9FC),
@@ -768,91 +884,54 @@ class _AddCustomItemForm extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    key: const Key('files_add_description'),
-                    controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    key: const Key('files_add_specification'),
-                    controller: specificationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Specification',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    key: const Key('files_add_unit'),
-                    controller: unitController,
-                    decoration: const InputDecoration(
-                      labelText: 'Unit',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const Key('files_add_quantity'),
-                    controller: quantityController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Quantity',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    key: const Key('files_add_rate'),
-                    controller: rateController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Rate',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  key: const Key('files_add_submit'),
-                  onPressed: onSubmit,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Item'),
-                ),
-              ],
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 620;
+            return compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      description,
+                      const SizedBox(height: 12),
+                      specification,
+                      const SizedBox(height: 12),
+                      unit,
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: quantity),
+                          const SizedBox(width: 12),
+                          Expanded(child: rate),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Align(alignment: Alignment.centerRight, child: submit),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(flex: 2, child: description),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 2, child: specification),
+                          const SizedBox(width: 12),
+                          Expanded(child: unit),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: quantity),
+                          const SizedBox(width: 12),
+                          Expanded(child: rate),
+                          const SizedBox(width: 12),
+                          submit,
+                        ],
+                      ),
+                    ],
+                  );
+          },
         ),
       ),
     );
@@ -1078,7 +1157,8 @@ class _ActionPanel extends StatelessWidget {
   const _ActionPanel({required this.state, required this.onExportPressed});
 
   final FilesState state;
-  final void Function(BuildContext context, String label) onExportPressed;
+  final Future<void> Function(BuildContext context, String label)
+  onExportPressed;
 
   static const List<String> _actions = <String>[
     'Des. Print Out',

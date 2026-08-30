@@ -183,7 +183,7 @@ class _UsersWorkspace extends StatelessWidget {
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.end,
             children: [
-              SizedBox(
+              _CompactWidth(
                 width: 260,
                 child: TextField(
                   key: const Key('users_add_name'),
@@ -195,7 +195,7 @@ class _UsersWorkspace extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(
+              _CompactWidth(
                 width: 320,
                 child: TextField(
                   key: const Key('users_add_email'),
@@ -379,6 +379,24 @@ class _UsersWorkspace extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _CompactWidth extends StatelessWidget {
+  const _CompactWidth({required this.width, required this.child});
+
+  final double width;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final availableWidth = MediaQuery.sizeOf(context).width - 84;
+    final constrainedWidth = availableWidth < 160
+        ? 160.0
+        : availableWidth < width
+        ? availableWidth
+        : width;
+    return SizedBox(width: constrainedWidth, child: child);
   }
 }
 

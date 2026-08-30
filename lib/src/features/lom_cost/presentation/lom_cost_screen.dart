@@ -210,34 +210,47 @@ class _WorkspaceView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'LOM Material Rate',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 720;
+            return Flex(
+              direction: stacked ? Axis.vertical : Axis.horizontal,
+              crossAxisAlignment:
+                  stacked ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  fit: stacked ? FlexFit.loose : FlexFit.tight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LOM Material Rate',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Manage material names and per-unit rates used in calculations.',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Manage material names and per-unit rates used in calculations.',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                ),
+                SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
+                Align(
+                  alignment: stacked ? Alignment.centerRight : Alignment.center,
+                  child: FilledButton.icon(
+                    onPressed: state.isBusy ? null : onResetDefaults,
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Set Rates to Default'),
                   ),
-                ],
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: state.isBusy ? null : onResetDefaults,
-              icon: const Icon(Icons.restart_alt),
-              label: const Text('Set Rates to Default'),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 18),
         _SurfaceCard(
@@ -249,7 +262,7 @@ class _WorkspaceView extends StatelessWidget {
                 runSpacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.end,
                 children: [
-                  SizedBox(
+                  _CompactWidth(
                     width: 300,
                     child: TextField(
                       key: const Key('lom_cost_add_name'),
@@ -261,7 +274,7 @@ class _WorkspaceView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SizedBox(
+                  _CompactWidth(
                     width: 220,
                     child: TextField(
                       key: const Key('lom_cost_add_rate'),
@@ -465,6 +478,24 @@ class _WorkspaceView extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _CompactWidth extends StatelessWidget {
+  const _CompactWidth({required this.width, required this.child});
+
+  final double width;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final availableWidth = MediaQuery.sizeOf(context).width - 84;
+    final constrainedWidth = availableWidth < 160
+        ? 160.0
+        : availableWidth < width
+        ? availableWidth
+        : width;
+    return SizedBox(width: constrainedWidth, child: child);
   }
 }
 
