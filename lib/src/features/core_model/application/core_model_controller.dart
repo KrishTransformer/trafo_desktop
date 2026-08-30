@@ -11,6 +11,7 @@ import '../../design_workspace/domain/models/two_winding_design.dart';
 import '../../design_workspace/domain/repositories/core_calculation_repository.dart';
 import '../../design_workspace/domain/repositories/core_design_repository.dart';
 import '../../home/domain/models/design_summary.dart';
+import '../../multi_winding/domain/models/multi_winding_design.dart';
 import 'core_model_state.dart';
 
 class CoreModelController extends ChangeNotifier {
@@ -37,9 +38,13 @@ class CoreModelController extends ChangeNotifier {
     }
 
     final twoWindingDesign = _readTwoWindingDesign(initialSummary?.twoWindings);
+    final multiWindingDesign = _readMultiWindingDesign(
+      initialSummary?.multiWindings,
+    );
     final coreResult = _readCoreResult(initialSummary?.core);
     final request = _buildInitialRequest(
       twoWindingDesign: twoWindingDesign,
+      multiWindingDesign: multiWindingDesign,
       coreResult: coreResult,
     );
     final selection = _selectionFromResult(coreResult);
@@ -51,8 +56,10 @@ class CoreModelController extends ChangeNotifier {
         designId:
             initialSummary?.designId ??
             twoWindingDesign?.stringAt('designId') ??
+            multiWindingDesign?.textAt('designId') ??
             '',
         twoWindingDesign: twoWindingDesign,
+        multiWindingDesign: multiWindingDesign,
         request: request,
         result: coreResult,
         selectedStepNo: selection.stepNo,
@@ -145,7 +152,7 @@ class CoreModelController extends ChangeNotifier {
       _setState(
         _state.copyWith(
           errorMessage:
-              'Open the core model from a saved two-winding design before calculating.',
+              'Open the core model from a saved design before calculating.',
         ),
       );
       return false;
@@ -196,6 +203,7 @@ class CoreModelController extends ChangeNotifier {
 
   String revisedFluxDensityText() {
     return _state.twoWindingDesign?.stringAt('lvFormulas.revisedFluxDensity') ??
+        _state.multiWindingDesign?.textAt('fluxDensity') ??
         '';
   }
 
@@ -270,6 +278,11 @@ class CoreModelController extends ChangeNotifier {
     return json == null ? null : TwoWindingDesign.fromJson(json);
   }
 
+  MultiWindingDesign? _readMultiWindingDesign(Object? raw) {
+    final json = _readJsonMap(raw);
+    return json == null ? null : MultiWindingDesign.fromJson(json);
+  }
+
   CoreCalculationResult? _readCoreResult(Object? raw) {
     final json = _readJsonMap(raw);
     return json == null ? null : CoreCalculationResult.fromJson(json);
@@ -301,12 +314,17 @@ class CoreModelController extends ChangeNotifier {
 
   CoreCalculationRequest _buildInitialRequest({
     required TwoWindingDesign? twoWindingDesign,
+    required MultiWindingDesign? multiWindingDesign,
     required CoreCalculationResult? coreResult,
   }) {
     final request = CoreCalculationRequest.initial(
-      coreDiameter: twoWindingDesign?.readPath('core.coreDia'),
-      limbHt: twoWindingDesign?.readPath('core.limbHt'),
-      cenDist: twoWindingDesign?.readPath('core.cenDist'),
+      coreDiameter: twoWindingDesign?.readPath('core.coreDia') ??
+          multiWindingDesign?.readPath('core.coreDia'),
+      limbHt: twoWindingDesign?.readPath('core.limbHt') ??
+          multiWindingDesign?.readPath('core.limbHt'),
+      cenDist: twoWindingDesign?.readPath('core.cenDist') ??
+          multiWindingDesign?.readPath('core.cenDist') ??
+          multiWindingDesign?.readPath('coilDimensions.centerDistance'),
     );
 
     if (coreResult == null || coreResult.coreArea == null) {
@@ -340,6 +358,7 @@ class CoreModelController extends ChangeNotifier {
     return current.copyWith(
       coreDiameter:
           _state.twoWindingDesign?.readPath('core.coreDia') ??
+          _state.multiWindingDesign?.readPath('core.coreDia') ??
           current.coreDiameter,
       minimumStepWidth: steps.last.width ?? current.minimumStepWidth,
       numberOfSteps: steps.length,

@@ -24,6 +24,12 @@ class DesktopNavigationShell extends StatelessWidget {
       (destination) => destination.branchIndex == navigationShell.currentIndex,
       orElse: () => destinations.first,
     );
+    final summary = DesignNavigationMemory.summaryFor(navigation.designId);
+    final contextLabel = navigation.scope == _NavigationScope.design
+        ? navigation.designId == 'new'
+              ? 'New design workspace'
+              : 'Ref: ${summary?.designId ?? navigation.designId} | ID: ${navigation.designId}'
+        : 'Workspace';
 
     return Scaffold(
       drawer: _ShellDrawer(
@@ -37,6 +43,7 @@ class DesktopNavigationShell extends StatelessWidget {
           child: navigationShell,
           showDrawerButton: true,
           destination: currentDestination,
+          contextLabel: contextLabel,
         ),
       ),
     );
@@ -46,7 +53,7 @@ class DesktopNavigationShell extends StatelessWidget {
     BuildContext context,
     _ShellDestination destination,
   ) {
-    _DesignNavigationMemory.remember(destination);
+    DesignNavigationMemory.remember(destination);
     context.go(destination.route);
   }
 
@@ -79,8 +86,7 @@ class DesktopNavigationShell extends StatelessWidget {
       else
         _ShellDestination(label: '2Wdg', icon: Icons.calculate_outlined, selectedIcon: Icons.calculate, route: RoutePaths.twoWindingsDesign(designId), branchIndex: 2),
       _ShellDestination(label: 'Core', icon: Icons.donut_large_outlined, selectedIcon: Icons.donut_large, route: RoutePaths.coreDesign(designId), branchIndex: 3),
-      if (!isMulti)
-        _ShellDestination(label: 'Fabrication', icon: Icons.precision_manufacturing_outlined, selectedIcon: Icons.precision_manufacturing, route: RoutePaths.fabricationDesign(designId), branchIndex: 4),
+      _ShellDestination(label: 'Fabrication', icon: Icons.precision_manufacturing_outlined, selectedIcon: Icons.precision_manufacturing, route: RoutePaths.fabricationDesign(designId), branchIndex: 4),
       _ShellDestination(label: 'Files', icon: Icons.folder_open_outlined, selectedIcon: Icons.folder_open, route: RoutePaths.filesDesign(designId), branchIndex: 5),
     ];
   }
@@ -153,11 +159,17 @@ class _ShellDrawer extends StatelessWidget {
 }
 
 class _ContentPane extends StatelessWidget {
-  const _ContentPane({required this.child, required this.showDrawerButton, required this.destination});
+  const _ContentPane({
+    required this.child,
+    required this.showDrawerButton,
+    required this.destination,
+    required this.contextLabel,
+  });
 
   final Widget child;
   final bool showDrawerButton;
   final _ShellDestination destination;
+  final String contextLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +217,7 @@ class _ContentPane extends StatelessWidget {
                     ),
                     const SizedBox(height: 1),
                     Text(
-                      destination.route,
+                      contextLabel,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -346,17 +358,21 @@ class _NavigationContext {
         : path.startsWith(RoutePaths.twoWindings)
         ? DesignType.twoWinding
         : null;
-    final typeFromSummary = state.extra is DesignSummary
-        ? (state.extra! as DesignSummary).type
+    final summaryFromState = state.extra is DesignSummary
+        ? state.extra! as DesignSummary
         : null;
+    final typeFromSummary = summaryFromState?.type;
     final designType =
         typeFromRoute ??
         typeFromSummary ??
-        _DesignNavigationMemory.typeFor(designId) ??
+        DesignNavigationMemory.typeFor(designId) ??
         DesignType.twoWinding;
 
     if (scope == _NavigationScope.design) {
-      _DesignNavigationMemory.rememberContext(designId, designType);
+      DesignNavigationMemory.rememberContext(designId, designType);
+      if (summaryFromState != null) {
+        DesignNavigationMemory.rememberSummary(summaryFromState);
+      }
     }
 
     return _NavigationContext(
@@ -382,11 +398,21 @@ class _NavigationContext {
   }
 }
 
-class _DesignNavigationMemory {
+class DesignNavigationMemory {
   static final Map<String, DesignType> _typesByDesignId =
       <String, DesignType>{};
+  static final Map<String, DesignSummary> _summariesByDesignId =
+      <String, DesignSummary>{};
 
   static DesignType? typeFor(String designId) => _typesByDesignId[designId];
+
+  static DesignSummary? summaryFor(String designId) =>
+      _summariesByDesignId[designId];
+
+  static void rememberSummary(DesignSummary summary) {
+    _summariesByDesignId[summary.id] = summary;
+    rememberContext(summary.id, summary.type);
+  }
 
   static void rememberContext(String designId, DesignType designType) {
     _typesByDesignId[designId] = designType;

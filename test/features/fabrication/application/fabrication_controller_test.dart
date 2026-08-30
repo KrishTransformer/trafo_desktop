@@ -95,6 +95,47 @@ void main() {
   );
 
   test(
+    'initialize adapts multi-winding design data for fabrication',
+    () async {
+      final calculationRepository = _FakeFabricationCalculationRepository(
+        result: FabricationCalculationResult.fromJson(<String, dynamic>{
+          'tank': <String, dynamic>{'tank_L': 1250},
+          'restOfVariables': <String, dynamic>{'designId': 'multi-12345'},
+        }),
+      );
+      final designRepository = _FakeFabricationDesignRepository();
+      final controller = FabricationController(
+        routeId: 'entity-multi',
+        calculationRepository: calculationRepository,
+        designRepository: designRepository,
+        cadRepository: _FakeFabricationCadRepository(),
+        drawingsStatusRepository: _FakeDrawingsStatusRepository(),
+      );
+
+      await controller.initialize(
+        initialSummary: const DesignSummary(
+          id: 'entity-multi',
+          designId: 'multi-12345',
+          designType: 'multi',
+          multiWindings:
+              '{"kVA":250,"highVoltage":11000,"lowVoltage":433,"vectorGroup":"Dyn11","core":{"coreDia":310,"limbHt":780,"cenDist":510},"tank":{"tankLength":1200,"tankWidth":800,"tankHeight":1000},"tankAndOilFormulas":{"transformerWeight":4200,"noOfRadiators":6},"coilDimensions":{"lvid":330,"lvod":420,"hvid":460,"hvod":560},"part2Windings":{"lv":{"windingLength":620,"turnsPerPhase":20,"phaseCurrent":300},"hvMain":{"windingLength":760,"turnsPerPhase":240,"phaseCurrent":14}},"performance":{"impedance":6.25}}',
+        ),
+      );
+
+      expect(controller.state.hasDesignContext, isTrue);
+      expect(
+        controller.state.formData.stringAt('restOfVariables.designId'),
+        'multi-12345',
+      );
+      expect(controller.state.formData.stringAt('fabricationCore.core_Dia'), '310');
+      expect(controller.state.formData.stringAt('lv.lv_Wdg_L'), '620');
+      expect(controller.state.formData.stringAt('hv.hv_Wdg_L'), '760');
+      expect(calculationRepository.requests, hasLength(1));
+      expect(designRepository.persistedEntityIds, <String>['entity-multi']);
+    },
+  );
+
+  test(
     'initialize restores persisted fabrication instead of reseeding it',
     () async {
       final calculationRepository = _FakeFabricationCalculationRepository();

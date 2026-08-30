@@ -64,21 +64,43 @@ class _MultiWindingScreenState extends State<MultiWindingScreen> {
         final state = controller.state;
         final isCompact = MediaQuery.sizeOf(context).width < 640;
         return Padding(
-          padding: EdgeInsets.all(isCompact ? 12 : 20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Wrap(spacing: 10, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                SizedBox(width: isCompact ? MediaQuery.sizeOf(context).width - 48 : 360, child: Text(state.designId.isEmpty ? 'Multi-Winding Design' : state.designId, style: Theme.of(context).textTheme.headlineSmall, overflow: TextOverflow.ellipsis)),
-                OutlinedButton(onPressed: state.isCalculating ? null : controller.reset, child: const Text('Reset')),
-                FilledButton.icon(onPressed: state.isCalculating ? null : controller.calculate, icon: state.isCalculating ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.calculate_outlined), label: const Text('Calculate')),
-              ]),
-              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    OutlinedButton(
+                      onPressed: state.isCalculating ? null : controller.reset,
+                      child: const Text('Reset'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: state.isCalculating
+                          ? null
+                          : controller.calculate,
+                      icon: state.isCalculating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.calculate_outlined),
+                      label: const Text('Calculate'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               SegmentedButton<int>(
                 segments: [
                   const ButtonSegment(value: 0, label: Text('Inputs')),
                   ButtonSegment(value: 1, label: Text(isCompact ? 'Wind.' : 'Windings')),
                   ButtonSegment(value: 2, label: Text(isCompact ? 'Dims' : 'Dimensions & Cost')),
+                  ButtonSegment(value: 3, label: Text(isCompact ? 'Out' : 'Outputs')),
                 ],
                 selected: <int>{_tab},
                 onSelectionChanged: (value) => setState(() => _tab = value.first),
@@ -88,7 +110,8 @@ class _MultiWindingScreenState extends State<MultiWindingScreen> {
                 0 => _InputsTab(controller: controller),
                 1 => _WindingsTab(controller: controller),
                 2 => _DimensionsTab(controller: controller),
-                _ => _DimensionsTab(controller: controller),
+                3 => _ResultsTab(controller: controller),
+                _ => _ResultsTab(controller: controller),
               }),
             ],
           ),

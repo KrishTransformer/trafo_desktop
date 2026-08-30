@@ -70,6 +70,35 @@ void main() {
     },
   );
 
+  test('initialize generates a LOM from a multi-winding design', () async {
+    final lomRepository = _FakeFilesLomRepository();
+    final controller = FilesController(
+      routeId: 'entity-multi',
+      lomRepository: lomRepository,
+      lomMaterialRepository: _FakeLomMaterialRepository(),
+      designRepository: _FakeFilesDesignRepository(),
+    );
+
+    await controller.initialize(
+      initialSummary: const DesignSummary(
+        id: 'entity-multi',
+        designId: 'multi-12345',
+        designType: 'multi',
+        multiWindings:
+            '{"vectorGroup":"Dyn11","core":{"coreWeight":950},"multiCost":{"conductors":{"lv":{"weight":60},"hvMain":{"weight":48}}},"tankAndOilFormulas":{"hvConnectionWeight":15,"lvConnectionWeight":16,"insulationWeight":20,"totalOil":340,"weightOfTankAndAcc":930,"totalRadiatorWeight":440,"channelWeight":25}}',
+        fabrication:
+            '{"hvcb":{"hvcb":false},"lvcb":{"lvcb":true},"drain_Vlv":{"drain_Vlv":true,"drain_Vlv_Nos":2},"fill_Vlv":{"fill_Vlv":true},"smpl_Vlv":{"smpl_Vlv":false},"mog":{"mog":true},"roller":{"roller":true},"cons":{"cons_Olg_Nos":1},"restOfVariables":{"prv":true}}',
+      ),
+    );
+
+    expect(controller.state.hasGenerationContext, isTrue);
+    expect(lomRepository.requests, hasLength(1));
+    final request = lomRepository.requests.single.toJson();
+    expect(request['lomQuantity'], containsPair('lamination', 950));
+    expect(request['lomQuantity'], containsPair('hvConductor', 48));
+    expect(request['lomQuantity'], containsPair('lvConductor', 60));
+  });
+
   test(
     'updateRate on a generated row stores an override and re-fetches the lom',
     () async {

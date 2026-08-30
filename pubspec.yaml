@@ -40,6 +40,7 @@ dependencies:
   path_provider: ^2.1.5
   pdf: ^3.11.3
   url_launcher: ^6.3.2
+  webview_windows: ^0.4.0
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +61,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
+  assets:
+    - assets/vendor/model-viewer.min.js
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

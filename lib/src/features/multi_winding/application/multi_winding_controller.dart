@@ -193,6 +193,7 @@ class MultiWindingController extends ChangeNotifier {
     for (final windingId in active) {
       final apiKey = _lockGroupByWinding[windingId]!;
       final prefix = windingId == 'hvMain' ? 'hv' : windingId;
+      final windingType = _text(source['${prefix}WindingType']);
       payload['${prefix}WindingType'] = _nullable(
         source['${prefix}WindingType'],
       );
@@ -202,6 +203,7 @@ class MultiWindingController extends ChangeNotifier {
       payload[apiKey] = _buildWinding(
         _map(windingData[windingId]),
         _map(locks[apiKey]),
+        windingType,
       );
     }
     return payload;
@@ -254,6 +256,7 @@ class MultiWindingController extends ChangeNotifier {
   Map<String, dynamic> _buildWinding(
     Map<String, dynamic> winding,
     Map<String, dynamic> locks,
+    String windingType,
   ) => <String, dynamic>{
     'turnsPerPhase': _isLocked(locks, '', 'turnsPerPhase')
         ? _number(winding['turnsPerPhase'])
@@ -281,7 +284,7 @@ class MultiWindingController extends ChangeNotifier {
         : '',
     'noOfLayers': _integer(winding['noOfLayers']),
     'ducts': _integer(winding['ducts']),
-    'ductSize': _integer(winding['ductSize']),
+    'ductSize': _resolvedDuctSize(winding, windingType),
     'condInsulation': _number(winding['condInsulation']),
     'interLayerInsulation': _number(winding['interLayerInsulation']),
     'endClearances': _number(winding['endClearances']),
@@ -307,6 +310,16 @@ class MultiWindingController extends ChangeNotifier {
     if (radial.isEmpty && axial.isEmpty) return '';
     final total = (_number(radial) ?? 0) * (_number(axial) ?? 0);
     return 'Rad $radial X Axi $axial = $total';
+  }
+
+  static int? _resolvedDuctSize(
+    Map<String, dynamic> winding,
+    String windingType,
+  ) {
+    final source = windingType == 'DISC'
+        ? winding['discDuctSize'] ?? winding['ductSize']
+        : winding['ductSize'];
+    return _integer(source);
   }
 
   void _toggleLock(String group, String field) {
@@ -409,12 +422,93 @@ class MultiWindingController extends ChangeNotifier {
     final tankAndOil = _map(results['tankAndOil']);
     final inputWindings = _map(inputs['windingModels']);
     final calculatedCore = _map(results['core']);
+    final common = _map(results['common']);
+    final impedance = _map(results['impedance']);
+    final responseLocks = _map(response['lockedAttributes']);
+    final responseEz = _map(results['ez']);
+    final phaseVoltages = _map(results['phaseVoltages']);
+    final phaseVoltageDivision = _map(results['phaseVoltageDivision']);
+    final lvWinding = _map(results['lvWinding']);
+    final hvWinding = _map(results['hvWinding']);
+    final corseWinding = _map(results['corseWinding']);
+    final fineWinding = _map(results['fineWinding']);
+    final outerWinding = _map(results['outerWinding']);
+
+    _putIfPresent(
+      merged,
+      'windingConfiguration',
+      _configurationForSelectedCode(_text(response['selectedCode'])),
+    );
+    _putIfPresent(merged, 'designId', inputs['designId']);
 
     _putIfPresent(merged, 'kVA', ratings['kVA'] ?? response['kVA']);
     _putIfPresent(merged, 'primaryVoltage', ratings['lowVoltage']);
     _putIfPresent(merged, 'secondaryVoltage', ratings['highVoltage']);
     _putIfPresent(merged, 'fluxDensity', ratings['fluxDensity']);
-    _putIfPresent(merged, 'vectorGroup', inputs['vectorGroup']);
+    _putIfPresent(merged, 'vectorGroup', inputs['vectorGroup'] ?? common['vectorGroup']);
+    _putIfPresent(merged, 'kValue', ratings['kValue'] ?? common['kValue']);
+    _putIfPresent(merged, 'frequency', ratings['frequency'] ?? common['frequency']);
+    _putIfPresent(
+      merged,
+      'lowVoltage',
+      _pickDefined(<Object?>[
+        phaseVoltages['lv'],
+        phaseVoltageDivision['lv'],
+        lvWinding['voltsPerPhase'],
+      ]),
+    );
+    _putIfPresent(
+      merged,
+      'highVoltage',
+      _pickDefined(<Object?>[
+        phaseVoltages['hvMain'],
+        phaseVoltageDivision['hvMain'],
+        hvWinding['voltsPerPhase'],
+      ]),
+    );
+    _putIfPresent(
+      merged,
+      'corseVoltage',
+      _pickDefined(<Object?>[
+        phaseVoltages['corse'],
+        phaseVoltageDivision['corse'],
+        corseWinding['voltsPerPhase'],
+      ]),
+    );
+    _putIfPresent(
+      merged,
+      'fineVoltage',
+      _pickDefined(<Object?>[
+        phaseVoltages['fine'],
+        phaseVoltageDivision['fine'],
+        fineWinding['voltsPerPhase'],
+      ]),
+    );
+    _putIfPresent(
+      merged,
+      'outerVoltage',
+      _pickDefined(<Object?>[
+        phaseVoltages['outer'],
+        phaseVoltageDivision['outer'],
+        outerWinding['voltsPerPhase'],
+      ]),
+    );
+    _putIfPresent(merged, 'buildFactor', common['buildFactor']);
+    _putIfPresent(merged, 'limitEz', responseEz['limit']);
+    _putIfPresent(merged, 'ez', responseEz['value'] ?? impedance['ek'] ?? common['ek']);
+    _putIfPresent(
+      merged,
+      'coreLoss',
+      results['noLoadLoss'] ??
+          results['coreLoss'] ??
+          common['coreLoss'] ??
+          hvWinding['coreLoss'] ??
+          lvWinding['coreLoss'],
+    );
+    _putIfPresent(merged, 'ambientTemp', lvWinding['ambientTemp']);
+    _putIfPresent(merged, 'windingTemp', lvWinding['windingTemp']);
+    _putIfPresent(merged, 'topOilTemp', tankAndOil['topOilTemperature']);
+    _putIfPresent(merged, 'eRadiatorType', inputs['eRadiatorType']);
     merged['core'] = <String, dynamic>{
       ..._map(merged['core']),
       ...calculatedCore,
@@ -445,23 +539,88 @@ class MultiWindingController extends ChangeNotifier {
           results['voltsPerTurn'] ??
           _map(merged['performance'])['voltsPerTurn'],
     };
+    merged['tank'] = <String, dynamic>{
+      ..._map(merged['tank']),
+      'tankLoss': tankAndOil['tankLoss'] ?? _map(merged['tank'])['tankLoss'],
+      'wdgToTankGap':
+          tankAndOil['wdgTankGap'] ?? _map(merged['tank'])['wdgToTankGap'],
+      'connectionGap':
+          tankAndOil['connectionGap'] ?? _map(merged['tank'])['connectionGap'],
+      'topYokeToCoverGap':
+          tankAndOil['topYokeCoverGap'] ??
+          _map(merged['tank'])['topYokeToCoverGap'],
+      'tankLength':
+          tankAndOil['tankLength'] ?? _map(merged['tank'])['tankLength'],
+      'tankWidth':
+          tankAndOil['tankWidth'] ?? _map(merged['tank'])['tankWidth'],
+      'tankHeight':
+          tankAndOil['tankHeight'] ?? _map(merged['tank'])['tankHeight'],
+      'tankCapacity':
+          tankAndOil['tankCapacity'] ?? _map(merged['tank'])['tankCapacity'],
+      'tankDimension':
+          tankAndOil['tankDimension'] ?? _map(merged['tank'])['tankDimension'],
+      'overallDimension':
+          tankAndOil['overallDimension'] ??
+          _map(merged['tank'])['overallDimension'],
+    };
     merged['tankAndOilFormulas'] = <String, dynamic>{
       ..._map(merged['tankAndOilFormulas']),
+      'coolingStatement':
+          tankAndOil['coolingStatement'] ??
+          _map(merged['tankAndOilFormulas'])['coolingStatement'],
+      'conservatorDia':
+          tankAndOil['conservatorDia'] ??
+          _map(merged['tankAndOilFormulas'])['conservatorDia'],
+      'conservatorLength':
+          tankAndOil['conservatorLength'] ??
+          _map(merged['tankAndOilFormulas'])['conservatorLength'],
+      'conservatorCapacity':
+          tankAndOil['conservatorCapacity'] ??
+          _map(merged['tankAndOilFormulas'])['conservatorCapacity'],
+      'totalConductorWeight':
+          tankAndOil['totalConductorWeight'] ??
+          _map(merged['tankAndOilFormulas'])['totalConductorWeight'],
+      'totalConnectionWeight':
+          tankAndOil['totalConnectionWeight'] ??
+          _map(merged['tankAndOilFormulas'])['totalConnectionWeight'],
       'totalSteelWeight':
           tankAndOil['totalSteelWeight'] ??
           _map(merged['tankAndOilFormulas'])['totalSteelWeight'],
       'totalOil':
           tankAndOil['totalOil'] ??
           _map(merged['tankAndOilFormulas'])['totalOil'],
+      'oilWeight':
+          tankAndOil['oilWeight'] ?? _map(merged['tankAndOilFormulas'])['oilWeight'],
       'insulationWeight':
           tankAndOil['insulationWeight'] ??
           _map(merged['tankAndOilFormulas'])['insulationWeight'],
       'totalRadiatorWeight':
           tankAndOil['totalRadiatorWeight'] ??
           _map(merged['tankAndOilFormulas'])['totalRadiatorWeight'],
+      'radiatorHeight':
+          tankAndOil['radiatorHeight'] ??
+          _map(merged['tankAndOilFormulas'])['radiatorHeight'],
+      'radiatorWidth':
+          tankAndOil['radiatorWidth'] ??
+          _map(merged['tankAndOilFormulas'])['radiatorWidth'],
+      'radiatorSection':
+          tankAndOil['radiatorSection'] ??
+          _map(merged['tankAndOilFormulas'])['radiatorSection'],
+      'noOfRadiators':
+          tankAndOil['noOfRadiators'] ??
+          _map(merged['tankAndOilFormulas'])['noOfRadiators'],
+      'weightsOfActivePart':
+          tankAndOil['weightsOfActivePart'] ??
+          _map(merged['tankAndOilFormulas'])['weightsOfActivePart'],
+      'weightCore':
+          tankAndOil['weightCore'] ??
+          _map(merged['tankAndOilFormulas'])['weightCore'],
       'transformerWeight':
           tankAndOil['transformerWeight'] ??
           _map(merged['tankAndOilFormulas'])['transformerWeight'],
+      'weightOfTankAndAcc':
+          tankAndOil['weightOfTankAndAcc'] ??
+          _map(merged['tankAndOilFormulas'])['weightOfTankAndAcc'],
     };
     merged['coilDimensions'] = <String, dynamic>{
       ..._map(merged['coilDimensions']),
@@ -481,6 +640,12 @@ class MultiWindingController extends ChangeNotifier {
       'hvod': dimensions['hVOD'] ?? _map(merged['coilDimensions'])['hvod'],
       'hvhvgap':
           dimensions['hVHVGap'] ?? _map(merged['coilDimensions'])['hvhvgap'],
+      'activePartSize':
+          dimensions['activePartSize'] ??
+          _map(merged['coilDimensions'])['activePartSize'],
+      'centerDistance':
+          dimensions['centerDistance'] ??
+          _map(merged['coilDimensions'])['centerDistance'],
     };
     merged['multiCoilDimensions'] = <String, dynamic>{
       ..._map(merged['multiCoilDimensions']),
@@ -515,49 +680,34 @@ class MultiWindingController extends ChangeNotifier {
       'outer': 'outer',
     };
     final existingWindings = _map(merged['part2Windings']);
+    final windingResults = <String, Map<String, dynamic>>{
+      'lv': lvWinding,
+      'hvMain': hvWinding,
+      'corse': corseWinding,
+      'fine': fineWinding,
+      'outer': outerWinding,
+    };
     for (final entry in windingIds.entries) {
-      final result = _map(results['${entry.value}Winding']);
+      final result = windingResults[entry.key] ?? <String, dynamic>{};
+      final input = _map(inputWindings[entry.value]);
       existingWindings[entry.key] = <String, dynamic>{
         ..._map(existingWindings[entry.key]),
-        ..._map(inputWindings[entry.value]),
-        'turnsPerPhase':
-            result['turnsPerPhase'] ??
-            _map(existingWindings[entry.key])['turnsPerPhase'],
-        'condBreadth':
-            result['breadth'] ??
-            _map(existingWindings[entry.key])['condBreadth'],
-        'condHeight':
-            result['height'] ?? _map(existingWindings[entry.key])['condHeight'],
-        'conductorDiameter':
-            result['conductorDiameter'] ??
-            _map(existingWindings[entry.key])['conductorDiameter'],
-        'radialParallelCond':
-            result['radialParallelCond'] ??
-            _map(existingWindings[entry.key])['radialParallelCond'],
-        'axialParallelCond':
-            result['axialParallelCond'] ??
-            _map(existingWindings[entry.key])['axialParallelCond'],
-        'condInsulation':
-            result['conductorInsulation'] ??
-            _map(existingWindings[entry.key])['condInsulation'],
-        'interLayerInsulation':
-            result['interLayerInsulation'] ??
-            _map(existingWindings[entry.key])['interLayerInsulation'],
-        'endClearances':
-            result['endClearance'] ??
-            _map(existingWindings[entry.key])['endClearances'],
-        'noOfLayers':
-            result['noOfLayers'] ??
-            _map(existingWindings[entry.key])['noOfLayers'],
-        'ducts': result['ducts'] ?? _map(existingWindings[entry.key])['ducts'],
-        'ductSize':
-            result['ductSize'] ?? _map(existingWindings[entry.key])['ductSize'],
+        ..._mergeWindingState(
+          input,
+          result,
+          discDuctSize:
+              entry.key == 'lv'
+                  ? lvWinding['lvDiscDuctsSize']
+                  : entry.key == 'hvMain'
+                  ? hvWinding['hvDiscDuctsSize'] ?? _map(hvWinding['model'])['ductSize']
+                  : null,
+        ),
       };
     }
     merged['part2Windings'] = existingWindings;
     final conductorCosts = _map(_map(merged['multiCost'])['conductors']);
     for (final entry in windingIds.entries) {
-      final winding = _map(results['${entry.value}Winding']);
+      final winding = windingResults[entry.key] ?? <String, dynamic>{};
       final materialKey = <String, String>{
         'lv': 'lVConductorMaterial',
         'hvMain': 'hVConductorMaterial',
@@ -585,7 +735,7 @@ class MultiWindingController extends ChangeNotifier {
       'conductors': conductorCosts,
     };
     merged['lockedAttributes'] = _normalizeLocks(
-      _map(request['lockedAttributes']),
+      responseLocks.isNotEmpty ? responseLocks : _map(request['lockedAttributes']),
     );
     merged['calculationResponse'] = response;
     return MultiWindingDesign.fromJson(merged);
@@ -603,6 +753,178 @@ class MultiWindingController extends ChangeNotifier {
     final parsedWeight = _number(weight);
     if (parsedWeight == null || rate == null) return null;
     return parsedWeight * rate;
+  }
+
+  static Object? _pickDefined(List<Object?> values) {
+    for (final value in values) {
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  static String? _configurationForSelectedCode(String selectedCode) {
+    switch (selectedCode) {
+      case '2WDG':
+      case '2_WDG':
+        return '2_WDG_LV_HV_MAIN';
+      case '3_WDG':
+        return '3_WDG_LV_HV_MAIN_OUTER';
+      case '4_WDG_C':
+        return '4_WDG_LV_HV_MAIN_CORSE_OUTER';
+      case '4_WDG_F':
+        return '4_WDG_LV_HV_MAIN_FINE_OUTER';
+      case '5_WDG':
+        return '5_WDG_LV_HV_MAIN_CORSE_FINE_OUTER';
+      default:
+        return null;
+    }
+  }
+
+  static Map<String, dynamic> _mergeWindingState(
+    Map<String, dynamic> inputModel,
+    Map<String, dynamic> resultModel, {
+    Object? discDuctSize,
+  }) {
+    final formattedConductorSizes =
+        resultModel['breadth'] != null && resultModel['height'] != null
+        ? '${resultModel['breadth']} L X ${resultModel['height']} B'
+        : null;
+    return <String, dynamic>{
+      'turnsPerPhase':
+          _pickDefined(<Object?>[
+            inputModel['turnsPerPhase'],
+            resultModel['turnsPerPhase'],
+          ]),
+      'phaseCurrent':
+          _pickDefined(<Object?>[
+            inputModel['phaseCurrent'],
+            resultModel['phaseCurrent'],
+          ]),
+      'currentDensity':
+          _pickDefined(<Object?>[
+            inputModel['currentDensity'],
+            resultModel['currentDensity'],
+          ]),
+      'condCrossSec':
+          _pickDefined(<Object?>[
+            inputModel['condCrossSec'],
+            resultModel['condCrossSec'],
+          ]),
+      'conductorSizes':
+          _pickDefined(<Object?>[
+            inputModel['conductorSizes'],
+            formattedConductorSizes,
+          ]),
+      'condInsulation':
+          _pickDefined(<Object?>[
+            inputModel['condInsulation'],
+            resultModel['conductorInsulation'],
+          ]),
+      'noInParallel':
+          _pickDefined(<Object?>[
+            inputModel['noInParallel'],
+            _formatParallelFromValues(
+              resultModel['radialParallelCond'],
+              resultModel['axialParallelCond'],
+            ),
+          ]),
+      'windingLength':
+          _pickDefined(<Object?>[
+            inputModel['windingLength'],
+            resultModel['windingLength'],
+          ]),
+      'noOfLayers':
+          _pickDefined(<Object?>[
+            inputModel['noOfLayers'],
+            resultModel['noOfLayers'],
+          ]),
+      'interLayerInsulation':
+          _pickDefined(<Object?>[
+            inputModel['interLayerInsulation'],
+            resultModel['interLayerInsulation'],
+          ]),
+      'ducts': _pickDefined(<Object?>[inputModel['ducts'], resultModel['ducts']]),
+      'ductSize':
+          _pickDefined(<Object?>[inputModel['ductSize'], resultModel['ductSize']]),
+      'discDuctSize':
+          _pickDefined(<Object?>[discDuctSize, inputModel['discDuctSize']]),
+      'turnsLayers': inputModel['turnsLayers'],
+      'endClearances':
+          _pickDefined(<Object?>[
+            inputModel['endClearances'],
+            resultModel['endClearance'],
+          ]),
+      'eddyStrayLoss':
+          _pickDefined(<Object?>[
+            inputModel['eddyStrayLoss'],
+            resultModel['strayLoss'],
+          ]),
+      'tempGradDegC':
+          _pickDefined(<Object?>[
+            inputModel['tempGradDegC'],
+            resultModel['gradient'],
+          ]),
+      'weightBareInsulated':
+          _pickDefined(<Object?>[
+            inputModel['weightBareInsulated'],
+            _formatWeightPair(
+              resultModel['bareWeight'],
+              resultModel['insulatedWeight'],
+            ),
+          ]),
+      'loadLoss':
+          _pickDefined(<Object?>[inputModel['loadLoss'], resultModel['loadLoss']]),
+      'radialParallelCond':
+          _pickDefined(<Object?>[
+            inputModel['radialParallelCond'],
+            resultModel['radialParallelCond'],
+          ]),
+      'axialParallelCond':
+          _pickDefined(<Object?>[
+            inputModel['axialParallelCond'],
+            resultModel['axialParallelCond'],
+          ]),
+      'condBreadth':
+          _pickDefined(<Object?>[inputModel['condBreadth'], resultModel['breadth']]),
+      'condHeight':
+          _pickDefined(<Object?>[inputModel['condHeight'], resultModel['height']]),
+      'conductorDiameter':
+          _pickDefined(<Object?>[
+            inputModel['conductorDiameter'],
+            resultModel['conductorDiameter'],
+          ]),
+      'isConductorRound':
+          _pickDefined(<Object?>[
+            inputModel['isConductorRound'],
+            resultModel['isConductorRound'],
+          ]),
+      'isEnamel':
+          _pickDefined(<Object?>[inputModel['isEnamel'], resultModel['isEnamel']]),
+    };
+  }
+
+  static String? _formatParallelFromValues(Object? radial, Object? axial) {
+    if (radial == null && axial == null) {
+      return null;
+    }
+    final radialText = _text(radial);
+    final axialText = _text(axial);
+    final radialValue = _number(radial);
+    final axialValue = _number(axial);
+    final total =
+        radialValue != null && axialValue != null
+        ? radialValue * axialValue
+        : '';
+    return 'Rad $radialText X Axi $axialText = $total';
+  }
+
+  static String? _formatWeightPair(Object? bareWeight, Object? insulatedWeight) {
+    if (bareWeight == null && insulatedWeight == null) {
+      return null;
+    }
+    return '${bareWeight ?? ''} / ${insulatedWeight ?? ''}'.trim();
   }
 
   static Map<String, dynamic> _coilDimension(

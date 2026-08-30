@@ -75,9 +75,19 @@ void main() {
     await controller.calculate();
 
     expect(storage.design.textAt('coilDimensions.lvid'), '620');
+    expect(storage.design.textAt('windingConfiguration'), '5_WDG_LV_HV_MAIN_CORSE_FINE_OUTER');
+    expect(storage.design.textAt('lowVoltage'), '6351');
+    expect(storage.design.textAt('highVoltage'), '31351');
+    expect(storage.design.textAt('buildFactor'), '1.25');
+    expect(storage.design.textAt('ez'), '5.99');
     expect(storage.design.textAt('part2Windings.lv.turnsPerPhase'), '48');
+    expect(storage.design.textAt('part2Windings.lv.weightBareInsulated'), '45 / 50');
     expect(storage.design.textAt('cost.capitalCost'), '125000');
+    expect(storage.design.textAt('tank.tankDimension'), '1570 L X 610 W X 1165 H mm');
+    expect(storage.design.textAt('tankAndOilFormulas.coolingStatement'), 'L X W = 800 X 520 : 12 X 93');
+    expect(storage.design.textAt('tankAndOilFormulas.totalSteelWeight'), '410');
     expect(storage.design.textAt('performance.noLoadLoss'), '750');
+    expect(storage.design.textAt('performance.impedance'), '5.99');
     expect(storage.design.textAt('multiCost.conductors.lv.totalCost'), '45000.0');
     expect(storage.design.readPath('lockedAttributes.lvWindings.turnsPerPhase'), isTrue);
   });
@@ -112,15 +122,39 @@ class _ResponseCalculationRepository implements MultiWindingCalculationRepositor
   @override
   Future<Map<String, dynamic>> calculate(Map<String, dynamic> request) async =>
       <String, dynamic>{
-        'inputs': <String, dynamic>{'ratings': <String, dynamic>{'kVA': 1000}},
+        'selectedCode': '5_WDG',
+        'inputs': <String, dynamic>{
+          'ratings': <String, dynamic>{
+            'kVA': 1000,
+            'lowVoltage': 11000,
+            'highVoltage': 33000,
+            'frequency': 50,
+            'fluxDensity': 1.7333,
+            'kValue': 0.45,
+          },
+          'vectorGroup': 'Dyn11',
+          'windingModels': <String, dynamic>{
+            'lv': <String, dynamic>{'turnsPerPhase': 48},
+          },
+        },
         'results': <String, dynamic>{
+          'phaseVoltages': <String, dynamic>{'lv': 6351, 'hvMain': 31351},
+          'common': <String, dynamic>{'buildFactor': 1.25, 'ek': 5.99},
+          'impedance': <String, dynamic>{'ek': 5.99},
           'coilDimensions': <String, dynamic>{'lVID': 620},
           'noLoadLoss': 750,
           'lvWinding': <String, dynamic>{
             'turnsPerPhase': 48,
+            'bareWeight': 45,
             'insulatedWeight': 50,
           },
-          'tankAndOil': <String, dynamic>{'capitalCost': 125000},
+          'tankAndOil': <String, dynamic>{
+            'capitalCost': 125000,
+            'totalSteelWeight': 410,
+            'tankDimension': '1570 L X 610 W X 1165 H mm',
+            'coolingStatement': 'L X W = 800 X 520 : 12 X 93',
+          },
+          'ez': <String, dynamic>{'value': 5.99, 'limit': 5},
         },
       };
 }

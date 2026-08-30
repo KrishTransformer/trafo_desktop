@@ -233,7 +233,7 @@ class _FilesScreenState extends State<FilesScreen> {
         return LoadingOverlay(
           isLoading: state.isBusy,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
             child: state.hasGenerationContext
                 ? _WorkspaceView(
                     controller: controller,
@@ -333,7 +333,7 @@ class _WorkspaceView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _WorkspaceHeader(controller: controller, state: state),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -408,59 +408,25 @@ class _WorkspaceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final designReference = state.designId.isNotEmpty
-        ? state.designId
-        : state.entityId;
-
-    final stacked = MediaQuery.sizeOf(context).width < 720;
-
-    return Flex(
-      direction: stacked ? Axis.vertical : Axis.horizontal,
-      crossAxisAlignment: stacked
-          ? CrossAxisAlignment.stretch
-          : CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          fit: stacked ? FlexFit.loose : FlexFit.tight,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Files and LOM',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Reference: $designReference',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        alignment: WrapAlignment.end,
+        children: [
+          FilledButton.icon(
+            onPressed: state.isBusy ? null : controller.refreshLom,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh LOM'),
           ),
-        ),
-        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
-        Wrap(
-          spacing: 12,
-          runSpacing: 10,
-          alignment: stacked ? WrapAlignment.end : WrapAlignment.start,
-          children: [
-            FilledButton.icon(
-              onPressed: state.isBusy ? null : controller.refreshLom,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh LOM'),
-            ),
-            FilledButton.icon(
-              onPressed: state.isBusy ? null : controller.saveDesign,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Save Design'),
-            ),
-          ],
-        ),
-      ],
+          FilledButton.icon(
+            onPressed: state.isBusy ? null : controller.saveDesign,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Save Design'),
+          ),
+        ],
+      ),
     );
   }
 }

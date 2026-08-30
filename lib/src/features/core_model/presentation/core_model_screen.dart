@@ -107,7 +107,7 @@ class _CoreModelScreenState extends State<CoreModelScreen> {
             return LoadingOverlay(
               isLoading: state.isBusy,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 child: state.hasDesignContext
                     ? _WorkspaceView(controller: controller, state: state)
                     : _CoreModelEmptyState(routeId: widget.routeDesignId),
@@ -131,8 +131,8 @@ class _WorkspaceView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _WorkspaceHeader(controller: controller, state: state),
-        const SizedBox(height: 18),
+        const _WorkspaceHeader(),
+        const SizedBox(height: 12),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -211,67 +211,26 @@ class _WorkspaceView extends StatelessWidget {
 }
 
 class _WorkspaceHeader extends StatelessWidget {
-  const _WorkspaceHeader({required this.controller, required this.state});
-
-  final CoreModelController controller;
-  final CoreModelState state;
+  const _WorkspaceHeader();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final stacked = MediaQuery.sizeOf(context).width < 720;
-    final designReference = state.designId.isNotEmpty
-        ? state.designId
-        : state.entityId;
-
-    return Flex(
-      direction: stacked ? Axis.vertical : Axis.horizontal,
-      crossAxisAlignment: stacked
-          ? CrossAxisAlignment.stretch
-          : CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          fit: stacked ? FlexFit.loose : FlexFit.tight,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Core Model',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Reference: $designReference',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                'Persisting updates to design entity ${state.entityId}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          'Ctrl/Cmd + Enter',
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
           ),
         ),
-        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            'Ctrl/Cmd + Enter',
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -789,14 +748,14 @@ class _CoreModelEmptyState extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   routeId.isEmpty
-                      ? 'Open the core model from a saved two-winding design to carry forward the current transformer and entity context.'
-                      : 'This route currently expects a loaded design summary from the two-winding workflow or the design list.',
+                      ? 'Open the core model from a saved design to carry forward the current transformer and entity context.'
+                      : 'This route currently expects a loaded design summary from the design workspace or design list.',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 16),
                 const _EmptyPanel(
                   message:
-                      'Open this workspace from a saved two-winding design so the core request can inherit the current design and entity context.',
+                      'Open this workspace from a saved design so the core request can inherit the current design and entity context.',
                 ),
               ],
             ),

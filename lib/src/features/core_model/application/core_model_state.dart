@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../design_workspace/domain/models/core_calculation_request.dart';
 import '../../design_workspace/domain/models/core_calculation_result.dart';
 import '../../design_workspace/domain/models/two_winding_design.dart';
+import '../../multi_winding/domain/models/multi_winding_design.dart';
 
 @immutable
 class CoreModelState {
@@ -13,6 +14,7 @@ class CoreModelState {
     required this.entityId,
     required this.designId,
     required this.twoWindingDesign,
+    required this.multiWindingDesign,
     required this.request,
     required this.result,
     required this.selectedStepNo,
@@ -29,6 +31,7 @@ class CoreModelState {
       entityId: '',
       designId: '',
       twoWindingDesign: null,
+      multiWindingDesign: null,
       request: const CoreCalculationRequest(
         coreDiameter: null,
         limbHt: null,
@@ -54,6 +57,7 @@ class CoreModelState {
   final String entityId;
   final String designId;
   final TwoWindingDesign? twoWindingDesign;
+  final MultiWindingDesign? multiWindingDesign;
   final CoreCalculationRequest request;
   final CoreCalculationResult? result;
   final Object? selectedStepNo;
@@ -63,7 +67,9 @@ class CoreModelState {
 
   bool get isBusy => isLoading;
 
-  bool get hasDesignContext => twoWindingDesign != null && entityId.isNotEmpty;
+  bool get hasDesignContext =>
+      (twoWindingDesign != null || multiWindingDesign != null) &&
+      entityId.isNotEmpty;
 
   bool get hasCoreResult => result != null;
 
@@ -75,6 +81,8 @@ class CoreModelState {
     String? designId,
     TwoWindingDesign? twoWindingDesign,
     bool clearTwoWindingDesign = false,
+    MultiWindingDesign? multiWindingDesign,
+    bool clearMultiWindingDesign = false,
     CoreCalculationRequest? request,
     CoreCalculationResult? result,
     bool clearResult = false,
@@ -92,6 +100,9 @@ class CoreModelState {
       twoWindingDesign: clearTwoWindingDesign
           ? null
           : twoWindingDesign ?? this.twoWindingDesign,
+      multiWindingDesign: clearMultiWindingDesign
+          ? null
+          : multiWindingDesign ?? this.multiWindingDesign,
       request: request ?? this.request,
       result: clearResult ? null : result ?? this.result,
       selectedStepNo: identical(selectedStepNo, _sentinel)

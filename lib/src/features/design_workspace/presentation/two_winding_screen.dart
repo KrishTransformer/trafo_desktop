@@ -105,11 +105,6 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
           builder: (context, _) {
             final state = controller.state;
             final theme = Theme.of(context);
-            final displayedDesignRef = state.metadata.designId.isNotEmpty
-                ? state.metadata.designId
-                : widget.routeDesignId == 'new'
-                ? 'Unsaved'
-                : widget.routeDesignId;
             final canOpenCore = state.metadata.entityId.isNotEmpty;
             final persistentComments = controller.buildPersistentComments();
             final hoveredComment = state.activeComment;
@@ -117,13 +112,11 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
             return LoadingOverlay(
               isLoading: state.isBusy,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _WorkspaceHeader(
-                      designReference: displayedDesignRef,
-                      routeDesignId: widget.routeDesignId,
                       canOpenCore: canOpenCore,
                       onReset: controller.reset,
                       onOpenCore: canOpenCore
@@ -137,7 +130,7 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                       },
                       isCalculating: state.isCalculating,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -250,8 +243,6 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
 
 class _WorkspaceHeader extends StatelessWidget {
   const _WorkspaceHeader({
-    required this.designReference,
-    required this.routeDesignId,
     required this.canOpenCore,
     required this.onReset,
     required this.onOpenCore,
@@ -259,8 +250,6 @@ class _WorkspaceHeader extends StatelessWidget {
     required this.isCalculating,
   });
 
-  final String designReference;
-  final String routeDesignId;
   final bool canOpenCore;
   final VoidCallback onReset;
   final VoidCallback? onOpenCore;
@@ -269,74 +258,36 @@ class _WorkspaceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final stacked = MediaQuery.sizeOf(context).width < 760;
-
-    return Flex(
-      direction: stacked ? Axis.vertical : Axis.horizontal,
-      crossAxisAlignment: stacked
-          ? CrossAxisAlignment.stretch
-          : CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          fit: stacked ? FlexFit.loose : FlexFit.tight,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Two-Winding Design',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Reference: $designReference',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                routeDesignId == 'new'
-                    ? 'New design workspace'
-                    : 'Loaded from design entity $routeDesignId',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        alignment: WrapAlignment.end,
+        children: [
+          OutlinedButton.icon(
+            onPressed: canOpenCore ? onOpenCore : null,
+            icon: const Icon(Icons.donut_large_outlined),
+            label: const Text('Open Core'),
           ),
-        ),
-        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
-        Wrap(
-          spacing: 12,
-          runSpacing: 10,
-          alignment: stacked ? WrapAlignment.end : WrapAlignment.start,
-          children: [
-            OutlinedButton.icon(
-              onPressed: canOpenCore ? onOpenCore : null,
-              icon: const Icon(Icons.donut_large_outlined),
-              label: const Text('Open Core'),
-            ),
-            OutlinedButton.icon(
-              onPressed: onReset,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reset'),
-            ),
-            FilledButton.icon(
-              onPressed: isCalculating ? null : onCalculate,
-              icon: isCalculating
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.calculate_outlined),
-              label: Text(isCalculating ? 'Calculating' : 'Calculate'),
-            ),
-          ],
-        ),
-      ],
+          OutlinedButton.icon(
+            onPressed: onReset,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reset'),
+          ),
+          FilledButton.icon(
+            onPressed: isCalculating ? null : onCalculate,
+            icon: isCalculating
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.calculate_outlined),
+            label: Text(isCalculating ? 'Calculating' : 'Calculate'),
+          ),
+        ],
+      ),
     );
   }
 }

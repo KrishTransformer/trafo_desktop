@@ -83,6 +83,44 @@ void main() {
   );
 
   test(
+    'initialize auto-calculates from a multi-winding design core',
+    () async {
+      final calculationRepository = _FakeCoreCalculationRepository(
+        result: CoreCalculationResult.fromJson(<String, dynamic>{
+          'coreArea': 1600,
+          'bldStacks': <Map<String, dynamic>>[
+            <String, dynamic>{'stepNo': 1, 'width': 100, 'stack': 80},
+          ],
+        }),
+      );
+      final designRepository = _FakeCoreDesignRepository();
+      final controller = CoreModelController(
+        routeId: 'entity-multi',
+        calculationRepository: calculationRepository,
+        designRepository: designRepository,
+      );
+
+      await controller.initialize(
+        initialSummary: const DesignSummary(
+          id: 'entity-multi',
+          designId: 'multi-12345',
+          designType: 'multi',
+          multiWindings:
+              '{"core":{"coreDia":310,"limbHt":780,"cenDist":510},"fluxDensity":1.7}',
+        ),
+      );
+
+      expect(controller.state.hasDesignContext, isTrue);
+      expect(controller.state.request.coreDiameter, 310);
+      expect(controller.state.request.limbHt, 780);
+      expect(controller.state.request.cenDist, 510);
+      expect(controller.revisedFluxDensityText(), '1.7');
+      expect(calculationRepository.requests, hasLength(1));
+      expect(designRepository.persistedEntityIds, <String>['entity-multi']);
+    },
+  );
+
+  test(
     'saveSelectedStep sends previous rows and the edited selected row payload',
     () async {
       final calculationRepository = _FakeCoreCalculationRepository(
@@ -148,7 +186,7 @@ void main() {
     expect(calculated, isFalse);
     expect(
       controller.state.errorMessage,
-      'Open the core model from a saved two-winding design before calculating.',
+      'Open the core model from a saved design before calculating.',
     );
   });
 }

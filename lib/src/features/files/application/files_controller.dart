@@ -8,6 +8,7 @@ import '../../design_workspace/domain/models/core_calculation_result.dart';
 import '../../design_workspace/domain/models/two_winding_design.dart';
 import '../../fabrication/domain/models/fabrication_calculation_result.dart';
 import '../../home/domain/models/design_summary.dart';
+import '../../multi_winding/domain/models/multi_winding_design.dart';
 import '../domain/models/lom_line_item.dart';
 import '../domain/models/lom_request.dart';
 import '../domain/repositories/files_design_repository.dart';
@@ -41,7 +42,7 @@ class FilesController extends ChangeNotifier {
       return;
     }
 
-    final twoWindingDesign = _readTwoWindingDesign(initialSummary?.twoWindings);
+    final twoWindingDesign = _readFilesDesign(initialSummary);
     final fabricationResult = _readFabrication(initialSummary?.fabrication);
     final coreResult = _readCoreResult(initialSummary?.core);
 
@@ -510,6 +511,44 @@ class FilesController extends ChangeNotifier {
     return json == null ? null : TwoWindingDesign.fromJson(json);
   }
 
+  TwoWindingDesign? _readFilesDesign(DesignSummary? summary) {
+    final twoWindingDesign = _readTwoWindingDesign(summary?.twoWindings);
+    if (twoWindingDesign != null) {
+      return twoWindingDesign;
+    }
+
+    final multiJson = _readJsonMap(summary?.multiWindings);
+    if (multiJson == null) {
+      return null;
+    }
+
+    final adapted = MultiWindingDesign.fromJson(multiJson).toJson();
+    final windings = _map(adapted['part2Windings']);
+    final lv = _map(windings['lv']);
+    final hv = _map(windings['hvMain']);
+    final conductors = _map(_map(adapted['multiCost'])['conductors']);
+    final lvCost = _map(conductors['lv']);
+    final hvCost = _map(conductors['hvMain']);
+    final performance = _map(adapted['performance']);
+
+    adapted['designId'] = summary?.designId ?? adapted['designId'];
+    adapted['innerWindings'] = lv;
+    adapted['outerWindings'] = hv;
+    adapted['lvFormulas'] = <String, dynamic>{
+      'lvCurrentPerPhase': lv['phaseCurrent'],
+      'lvProcurementWeight': lvCost['weight'],
+    };
+    adapted['hvFormulas'] = <String, dynamic>{
+      'hvCurrentPerPhase': hv['phaseCurrent'],
+      'hvProcurementWeight': hvCost['weight'],
+    };
+    adapted['commonFormulas'] = <String, dynamic>{
+      'ek': performance['impedance'] ?? adapted['ez'],
+    };
+
+    return TwoWindingDesign.fromJson(adapted);
+  }
+
   CoreCalculationResult? _readCoreResult(Object? raw) {
     final json = _readJsonMap(raw);
     return json == null ? null : CoreCalculationResult.fromJson(json);
@@ -541,6 +580,16 @@ class FilesController extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  Map<String, dynamic> _map(Object? value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map<Object?, Object?>) {
+      return Map<String, dynamic>.from(value);
+    }
+    return const <String, dynamic>{};
   }
 
   void _setState(FilesState value) {

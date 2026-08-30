@@ -7,6 +7,7 @@ import '../../../core/presentation/loading_overlay.dart';
 import '../../home/domain/models/design_summary.dart';
 import '../application/fabrication_controller.dart';
 import '../application/fabrication_state.dart';
+import 'glb_model_viewer.dart';
 import '../data/repositories/http_drawings_status_repository.dart';
 import '../data/repositories/http_fabrication_cad_repository.dart';
 import '../data/repositories/http_fabrication_calculation_repository.dart';
@@ -127,7 +128,7 @@ class _FabricationScreenState extends State<FabricationScreen> {
               child: Stack(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                     child: state.hasDesignContext
                         ? _WorkspaceView(
                             controller: controller,
@@ -185,7 +186,7 @@ class _WorkspaceView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _WorkspaceHeader(controller: controller, state: state),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -277,11 +278,6 @@ class _WorkspaceHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final stacked = MediaQuery.sizeOf(context).width < 820;
-    final designReference = state.designId.isNotEmpty
-        ? state.designId
-        : state.entityId;
     final statusLabel = state.latestStatus?.status ?? 'Idle';
     final statusColor = switch (statusLabel.toLowerCase()) {
       'success' => const Color(0xFF0A7D2B),
@@ -289,61 +285,28 @@ class _WorkspaceHeader extends StatelessWidget {
       _ => const Color(0xFF946300),
     };
 
-    return Flex(
-      direction: stacked ? Axis.vertical : Axis.horizontal,
-      crossAxisAlignment: stacked
-          ? CrossAxisAlignment.stretch
-          : CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          fit: stacked ? FlexFit.loose : FlexFit.tight,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Fabrication',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Reference: $designReference',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                'Persisting updates to design entity ${state.entityId}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        alignment: WrapAlignment.end,
+        children: [
+          _Pill(
+            icon: Icons.timeline_outlined,
+            label: '${state.drawingsStatuses.length} status entries',
           ),
-        ),
-        SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
-        Wrap(
-          spacing: 12,
-          runSpacing: 10,
-          alignment: stacked ? WrapAlignment.end : WrapAlignment.start,
-          children: [
-            _Pill(
-              icon: Icons.timeline_outlined,
-              label: '${state.drawingsStatuses.length} status entries',
-            ),
-            _Pill(
-              icon: Icons.sync_outlined,
-              label: statusLabel,
-              foregroundColor: statusColor,
-            ),
-            const _Pill(
-              icon: Icons.keyboard_command_key_outlined,
-              label: 'Ctrl/Cmd + Enter',
-            ),
-          ],
-        ),
-      ],
+          _Pill(
+            icon: Icons.sync_outlined,
+            label: statusLabel,
+            foregroundColor: statusColor,
+          ),
+          const _Pill(
+            icon: Icons.keyboard_command_key_outlined,
+            label: 'Ctrl/Cmd + Enter',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1190,26 +1153,9 @@ class _PreviewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.hasCadModel) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.view_in_ar_outlined, size: 44),
-            const SizedBox(height: 12),
-            Text(
-              'GLB model ready',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${state.cadModel!.bytes.length} bytes downloaded from storage.',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      return GlbModelViewer(
+        key: ValueKey<int>(identityHashCode(state.cadModel!.bytes)),
+        bytes: state.cadModel!.bytes,
       );
     }
 
@@ -1554,8 +1500,8 @@ class _FabricationEmptyState extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   routeId.isEmpty
-                      ? 'Open fabrication from a saved two-winding design so the current transformer data and design entity context are available.'
-                      : 'This route currently expects a loaded design summary from the two-winding workflow or the design list.',
+                      ? 'Open fabrication from a saved design so the current transformer data and design entity context are available.'
+                      : 'This route currently expects a loaded design summary from the design workspace or design list.',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 16),

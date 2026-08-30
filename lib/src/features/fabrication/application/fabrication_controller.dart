@@ -7,6 +7,7 @@ import '../../../core/network/api_exception.dart';
 import '../../design_workspace/domain/models/core_calculation_result.dart';
 import '../../design_workspace/domain/models/two_winding_design.dart';
 import '../../home/domain/models/design_summary.dart';
+import '../../multi_winding/domain/models/multi_winding_design.dart';
 import '../domain/models/cad_generation_request.dart';
 import '../domain/models/drawings_status_create_request.dart';
 import '../domain/models/fabrication_calculation_request.dart';
@@ -51,7 +52,7 @@ class FabricationController extends ChangeNotifier {
       return;
     }
 
-    final twoWindingDesign = _readTwoWindingDesign(initialSummary?.twoWindings);
+    final twoWindingDesign = _readFabricationDesign(initialSummary);
     final coreResult = _readCoreResult(initialSummary?.core);
     final persistedFabrication = _readFabrication(initialSummary?.fabrication);
     final seededFormData = _buildSeededFormData(
@@ -151,7 +152,7 @@ class FabricationController extends ChangeNotifier {
       _setState(
         _state.copyWith(
           errorMessage:
-              'Open fabrication from a saved two-winding design before calculating.',
+              'Open fabrication from a saved design before calculating.',
         ),
       );
       return false;
@@ -511,6 +512,42 @@ class FabricationController extends ChangeNotifier {
     return json == null ? null : TwoWindingDesign.fromJson(json);
   }
 
+  TwoWindingDesign? _readFabricationDesign(DesignSummary? summary) {
+    final twoWindingDesign = _readTwoWindingDesign(summary?.twoWindings);
+    if (twoWindingDesign != null) {
+      return twoWindingDesign;
+    }
+
+    final multiJson = _readJsonMap(summary?.multiWindings);
+    if (multiJson == null) {
+      return null;
+    }
+
+    final adapted = MultiWindingDesign.fromJson(multiJson).toJson();
+    final windings = _map(adapted['part2Windings']);
+    final lv = _map(windings['lv']);
+    final hv = _map(windings['hvMain']);
+    final performance = _map(adapted['performance']);
+
+    adapted['designId'] = summary?.designId ?? adapted['designId'];
+    adapted['innerWindings'] = lv;
+    adapted['outerWindings'] = hv;
+    adapted['hvFormulas'] = <String, dynamic>{
+      'hvCurrentPerPhase': hv['phaseCurrent'],
+      'turnsPerTap': hv['turnsPerTap'],
+      'tapVoltages': hv['tapVoltages'],
+      'tapCurrent': hv['phaseCurrent'],
+    };
+    adapted['lvFormulas'] = <String, dynamic>{
+      'lvCurrentPerPhase': lv['phaseCurrent'],
+    };
+    adapted['commonFormulas'] = <String, dynamic>{
+      'ek': performance['impedance'] ?? adapted['ez'],
+    };
+
+    return TwoWindingDesign.fromJson(adapted);
+  }
+
   CoreCalculationResult? _readCoreResult(Object? raw) {
     final json = _readJsonMap(raw);
     return json == null ? null : CoreCalculationResult.fromJson(json);
@@ -543,6 +580,16 @@ class FabricationController extends ChangeNotifier {
     }
 
     return null;
+  }
+
+  Map<String, dynamic> _map(Object? value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map<Object?, Object?>) {
+      return Map<String, dynamic>.from(value);
+    }
+    return const <String, dynamic>{};
   }
 
   Map<String, dynamic> _buildCalculatePayload() {
