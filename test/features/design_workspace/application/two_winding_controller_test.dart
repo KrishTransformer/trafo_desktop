@@ -119,6 +119,25 @@ void main() {
       expect(controller.state.metadata.designId, startsWith('100k-'));
     },
   );
+
+  testWidgets(
+    'queued hover comment updates do not notify after controller disposal',
+    (tester) async {
+      final controller = TwoWindingController(
+        routeId: 'new',
+        calculationRepository: _FakeCalculationRepository(),
+        designRepository: _FakeDesignRepository(),
+      );
+      await controller.initialize();
+
+      controller.showComment('tapStepComment');
+      controller.dispose();
+
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 class _FakeCalculationRepository implements TwoWindingCalculationRepository {

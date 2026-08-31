@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../authentication/application/auth_controller.dart';
@@ -92,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return LoadingOverlay(
           isLoading: state.isBusy || isSigningOut,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            padding: AppFormStyles.pagePadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -288,13 +289,6 @@ class _HomeHeader extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Browse saved designs, launch new work, and continue existing calculations.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
             ],
           ),
         ),
@@ -413,10 +407,11 @@ class _SearchToolbar extends StatelessWidget {
     final compact = screenWidth < 640;
     final searchWidth = compact ? screenWidth - 60 : 320.0;
     final sortWidth = compact ? screenWidth - 60 : 200.0;
+
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: AppFormStyles.compactPanelPadding,
         child: Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -424,39 +419,51 @@ class _SearchToolbar extends StatelessWidget {
           children: [
             SizedBox(
               width: searchWidth,
+              height: AppFormStyles.controlHeight,
               child: TextField(
                 controller: searchController,
                 onChanged: onSearchChanged,
                 onSubmitted: (_) => onSearchSubmitted(),
-                decoration: InputDecoration(
+                style: AppFormStyles.controlTextStyle(context),
+                textAlignVertical: TextAlignVertical.center,
+                decoration: AppFormStyles.decoration(
+                  context,
                   labelText: 'Search by Des Ref.',
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    size: AppFormStyles.controlIconSize,
+                  ),
                   suffixIcon: IconButton(
                     tooltip: 'Search',
                     onPressed: onSearchSubmitted,
                     icon: const Icon(Icons.arrow_forward),
                   ),
-                  border: const OutlineInputBorder(),
-                  isDense: true,
                 ),
               ),
             ),
             SizedBox(
               width: sortWidth,
+              height: AppFormStyles.controlHeight,
               child: DropdownButtonFormField<DesignSortOption>(
                 initialValue: state.sortOption,
                 isExpanded: true,
-                decoration: const InputDecoration(
+                style: AppFormStyles.controlTextStyle(context),
+                decoration: AppFormStyles.decoration(
+                  context,
                   labelText: 'Sort By',
-                  prefixIcon: Icon(Icons.sort),
-                  border: OutlineInputBorder(),
-                  isDense: true,
+                  prefixIcon: const Icon(
+                    Icons.sort,
+                    size: AppFormStyles.controlIconSize,
+                  ),
                 ),
                 items: DesignSortOption.values
                     .map(
                       (option) => DropdownMenuItem<DesignSortOption>(
                         value: option,
-                        child: Text(option.label),
+                        child: Text(
+                          option.label,
+                          style: AppFormStyles.controlTextStyle(context),
+                        ),
                       ),
                     )
                     .toList(growable: false),
@@ -506,7 +513,7 @@ class _HomeTable extends StatelessWidget {
     if (!state.isLoading && state.rows.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: AppFormStyles.panelPadding,
           child: Text(
             state.isSearchActive
                 ? 'No saved designs matched the current reference search.'
@@ -777,7 +784,7 @@ class _DesignTypeCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Ink(
-        padding: const EdgeInsets.all(16),
+        padding: AppFormStyles.panelPadding,
         decoration: BoxDecoration(
           border: Border.all(
             color: Theme.of(context).colorScheme.outlineVariant,

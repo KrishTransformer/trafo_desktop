@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../home/domain/models/design_summary.dart';
@@ -1854,15 +1855,15 @@ Widget _textField({
 }) {
   return SizedBox(
     width: 176,
-    child: TextFormField(
-      key: ValueKey<String>('field-$label-$value-$readOnly'),
-      initialValue: value,
-      readOnly: readOnly || onChanged == null,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
+    height: AppFormStyles.controlHeight,
+    child: Builder(
+      builder: (context) => TextFormField(
+        key: ValueKey<String>('field-$label-$value-$readOnly'),
+        initialValue: value,
+        readOnly: readOnly || onChanged == null,
+        onChanged: onChanged,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: label),
       ),
     ),
   );
@@ -1897,19 +1898,25 @@ Widget _lockableTextField({
 }) {
   return SizedBox(
     width: 176,
-    child: TextFormField(
-      key: ValueKey<String>('lock-field-$label-$value-$isLocked'),
-      initialValue: value,
-      readOnly: isLocked || onChanged == null,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
-        suffixIcon: IconButton(
-          tooltip: isLocked ? 'Unlock' : 'Lock',
-          onPressed: onToggleLock,
-          icon: Icon(isLocked ? Icons.lock : Icons.lock_open, size: 18),
+    height: AppFormStyles.controlHeight,
+    child: Builder(
+      builder: (context) => TextFormField(
+        key: ValueKey<String>('lock-field-$label-$value-$isLocked'),
+        initialValue: value,
+        readOnly: isLocked || onChanged == null,
+        onChanged: onChanged,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(
+          context,
+          labelText: label,
+          suffixIcon: IconButton(
+            tooltip: isLocked ? 'Unlock' : 'Lock',
+            onPressed: onToggleLock,
+            icon: Icon(
+              isLocked ? Icons.lock : Icons.lock_open,
+              size: AppFormStyles.controlIconSize,
+            ),
+          ),
         ),
       ),
     ),
@@ -1927,20 +1934,22 @@ Widget _dropdownField(
 
   return SizedBox(
     width: 176,
+    height: AppFormStyles.controlHeight,
     child: DropdownButtonFormField<String>(
       key: ValueKey<String>('dropdown-$label-$effectiveValue'),
       initialValue: effectiveValue,
       isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
+      style: AppFormStyles.controlTextStyle(context),
+      decoration: AppFormStyles.decoration(context, labelText: label),
       items: items
           .map(
             (item) => DropdownMenuItem<String>(
               value: item,
-              child: Text(item, overflow: TextOverflow.ellipsis),
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                style: AppFormStyles.controlTextStyle(context),
+              ),
             ),
           )
           .toList(growable: false),

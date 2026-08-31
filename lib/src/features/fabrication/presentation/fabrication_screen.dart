@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/app_scope.dart';
+import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../home/domain/models/design_summary.dart';
@@ -128,7 +129,7 @@ class _FabricationScreenState extends State<FabricationScreen> {
               child: Stack(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                    padding: AppFormStyles.pagePadding,
                     child: state.hasDesignContext
                         ? _WorkspaceView(
                             controller: controller,
@@ -1486,7 +1487,7 @@ class _FabricationEmptyState extends StatelessWidget {
         child: Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: AppFormStyles.panelPadding,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1544,7 +1545,7 @@ class _SectionPanel extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: AppFormStyles.panelPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1702,14 +1703,14 @@ Widget _textField({
 }) {
   return SizedBox(
     width: 168,
-    child: TextFormField(
-      key: ValueKey<String>('fabrication-field-$label-$value'),
-      initialValue: value,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
+    height: AppFormStyles.controlHeight,
+    child: Builder(
+      builder: (context) => TextFormField(
+        key: ValueKey<String>('fabrication-field-$label-$value'),
+        initialValue: value,
+        onChanged: onChanged,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: label),
       ),
     ),
   );
@@ -1718,14 +1719,14 @@ Widget _textField({
 Widget _readOnlyField({required String label, required String value}) {
   return SizedBox(
     width: 168,
-    child: TextFormField(
-      key: ValueKey<String>('fabrication-readonly-$label-$value'),
-      initialValue: value,
-      enabled: false,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
+    height: AppFormStyles.controlHeight,
+    child: Builder(
+      builder: (context) => TextFormField(
+        key: ValueKey<String>('fabrication-readonly-$label-$value'),
+        initialValue: value,
+        enabled: false,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: label),
       ),
     ),
   );
@@ -1742,20 +1743,22 @@ Widget _dropdownField(
 
   return SizedBox(
     width: 168,
+    height: AppFormStyles.controlHeight,
     child: DropdownButtonFormField<String>(
       key: ValueKey<String>('fabrication-dropdown-$label-$effectiveValue'),
       initialValue: effectiveValue,
       isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
+      style: AppFormStyles.controlTextStyle(context),
+      decoration: AppFormStyles.decoration(context, labelText: label),
       items: items
           .map(
             (item) => DropdownMenuItem<String>(
               value: item,
-              child: Text(item, overflow: TextOverflow.ellipsis),
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                style: AppFormStyles.controlTextStyle(context),
+              ),
             ),
           )
           .toList(growable: false),

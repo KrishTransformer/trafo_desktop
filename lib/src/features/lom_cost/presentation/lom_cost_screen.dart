@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_scope.dart';
+import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../files/domain/models/lom_material_entry.dart';
@@ -159,7 +160,7 @@ class _LomCostScreenState extends State<LomCostScreen> {
         return LoadingOverlay(
           isLoading: state.isBusy,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            padding: AppFormStyles.pagePadding,
             child: _WorkspaceView(
               controller: controller,
               state: state,
@@ -215,8 +216,9 @@ class _WorkspaceView extends StatelessWidget {
             final stacked = constraints.maxWidth < 720;
             return Flex(
               direction: stacked ? Axis.vertical : Axis.horizontal,
-              crossAxisAlignment:
-                  stacked ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+              crossAxisAlignment: stacked
+                  ? CrossAxisAlignment.stretch
+                  : CrossAxisAlignment.center,
               children: [
                 Flexible(
                   fit: stacked ? FlexFit.loose : FlexFit.tight,
@@ -264,28 +266,34 @@ class _WorkspaceView extends StatelessWidget {
                 children: [
                   _CompactWidth(
                     width: 300,
-                    child: TextField(
-                      key: const Key('lom_cost_add_name'),
-                      controller: materialNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Material Name',
-                        border: OutlineInputBorder(),
-                        isDense: true,
+                    child: SizedBox(
+                      height: AppFormStyles.controlHeight,
+                      child: TextField(
+                        key: const Key('lom_cost_add_name'),
+                        controller: materialNameController,
+                        style: AppFormStyles.controlTextStyle(context),
+                        decoration: AppFormStyles.decoration(
+                          context,
+                          labelText: 'Material Name',
+                        ),
                       ),
                     ),
                   ),
                   _CompactWidth(
                     width: 220,
-                    child: TextField(
-                      key: const Key('lom_cost_add_rate'),
-                      controller: materialRateController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Material Rate',
-                        border: OutlineInputBorder(),
-                        isDense: true,
+                    child: SizedBox(
+                      height: AppFormStyles.controlHeight,
+                      child: TextField(
+                        key: const Key('lom_cost_add_rate'),
+                        controller: materialRateController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        style: AppFormStyles.controlTextStyle(context),
+                        decoration: AppFormStyles.decoration(
+                          context,
+                          labelText: 'Material Rate',
+                        ),
                       ),
                     ),
                   ),
@@ -340,28 +348,42 @@ class _WorkspaceView extends StatelessWidget {
                                 cells: [
                                   DataCell(
                                     editingId == material.id
-                                        ? TextField(
-                                            controller:
-                                                editMaterialNameController,
-                                            decoration: const InputDecoration(
-                                              border: OutlineInputBorder(),
-                                              isDense: true,
+                                        ? SizedBox(
+                                            height: AppFormStyles.controlHeight,
+                                            child: TextField(
+                                              controller:
+                                                  editMaterialNameController,
+                                              style:
+                                                  AppFormStyles.controlTextStyle(
+                                                    context,
+                                                  ),
+                                              decoration:
+                                                  AppFormStyles.decoration(
+                                                    context,
+                                                  ),
                                             ),
                                           )
                                         : Text(material.materialName),
                                   ),
                                   DataCell(
                                     editingId == material.id
-                                        ? TextField(
-                                            controller:
-                                                editMaterialRateController,
-                                            keyboardType:
-                                                const TextInputType.numberWithOptions(
-                                                  decimal: true,
-                                                ),
-                                            decoration: const InputDecoration(
-                                              border: OutlineInputBorder(),
-                                              isDense: true,
+                                        ? SizedBox(
+                                            height: AppFormStyles.controlHeight,
+                                            child: TextField(
+                                              controller:
+                                                  editMaterialRateController,
+                                              keyboardType:
+                                                  const TextInputType.numberWithOptions(
+                                                    decimal: true,
+                                                  ),
+                                              style:
+                                                  AppFormStyles.controlTextStyle(
+                                                    context,
+                                                  ),
+                                              decoration:
+                                                  AppFormStyles.decoration(
+                                                    context,
+                                                  ),
                                             ),
                                           )
                                         : Text('Rs. ${material.materialRate}'),
@@ -519,7 +541,7 @@ class _SurfaceCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(padding: const EdgeInsets.all(18), child: child),
+      child: Padding(padding: AppFormStyles.panelPadding, child: child),
     );
   }
 }

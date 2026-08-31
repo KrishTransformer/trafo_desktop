@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../home/domain/models/design_summary.dart';
@@ -31,6 +32,9 @@ class TwoWindingController extends ChangeNotifier {
 
   TwoWindingState _state;
   TwoWindingDesign _baselineDesign;
+  String? _pendingHoveredCommentKey;
+  bool _hoverCommentUpdateScheduled = false;
+  bool _isDisposed = false;
 
   TwoWindingState get state => _state;
 
@@ -120,14 +124,17 @@ class TwoWindingController extends ChangeNotifier {
   }
 
   void showComment(String key) {
-    _setState(_state.copyWith(hoveredCommentKey: key));
+    if (_state.hoveredCommentKey == key && _pendingHoveredCommentKey == null) {
+      return;
+    }
+    _queueHoveredCommentUpdate(key);
   }
 
   void clearComment() {
-    if (_state.hoveredCommentKey.isEmpty) {
+    if (_state.hoveredCommentKey.isEmpty && _pendingHoveredCommentKey == null) {
       return;
     }
-    _setState(_state.copyWith(hoveredCommentKey: ''));
+    _queueHoveredCommentUpdate('');
   }
 
   void toggleMoreInfo() {
@@ -698,7 +705,42 @@ class TwoWindingController extends ChangeNotifier {
   }
 
   void _setState(TwoWindingState nextState) {
+    if (_isDisposed) {
+      return;
+    }
     _state = nextState;
     notifyListeners();
+  }
+
+  void _queueHoveredCommentUpdate(String key) {
+    _pendingHoveredCommentKey = key;
+    if (_hoverCommentUpdateScheduled) {
+      return;
+    }
+
+    _hoverCommentUpdateScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_isDisposed) {
+        _pendingHoveredCommentKey = null;
+        _hoverCommentUpdateScheduled = false;
+        return;
+      }
+      _hoverCommentUpdateScheduled = false;
+      final nextKey = _pendingHoveredCommentKey;
+      _pendingHoveredCommentKey = null;
+      if (nextKey == null || nextKey == _state.hoveredCommentKey) {
+        return;
+      }
+
+      _setState(_state.copyWith(hoveredCommentKey: nextKey));
+    });
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _pendingHoveredCommentKey = null;
+    _hoverCommentUpdateScheduled = false;
+    super.dispose();
   }
 }

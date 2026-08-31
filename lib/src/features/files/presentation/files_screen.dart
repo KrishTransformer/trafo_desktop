@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_scope.dart';
+import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../home/domain/models/design_summary.dart';
@@ -158,13 +159,16 @@ class _FilesScreenState extends State<FilesScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Update Rate'),
-          content: TextField(
-            controller: rateController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Rate',
-              border: OutlineInputBorder(),
+          content: SizedBox(
+            height: AppFormStyles.controlHeight,
+            child: TextField(
+              controller: rateController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              autofocus: true,
+              style: AppFormStyles.controlTextStyle(context),
+              decoration: AppFormStyles.decoration(context, labelText: 'Rate'),
             ),
           ),
           actions: [
@@ -233,7 +237,7 @@ class _FilesScreenState extends State<FilesScreen> {
         return LoadingOverlay(
           isLoading: state.isBusy,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            padding: AppFormStyles.pagePadding,
             child: state.hasGenerationContext
                 ? _WorkspaceView(
                     controller: controller,
@@ -526,17 +530,18 @@ class _CustomerField extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         if (isEditing)
-          TextFormField(
-            initialValue: value,
-            onChanged: onChanged,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
+          SizedBox(
+            height: AppFormStyles.controlHeight,
+            child: TextFormField(
+              initialValue: value,
+              onChanged: onChanged,
+              style: AppFormStyles.controlTextStyle(context),
+              decoration: AppFormStyles.decoration(context),
             ),
           )
         else
           Container(
-            height: 48,
+            height: AppFormStyles.controlHeight,
             alignment: Alignment.centerLeft,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
@@ -544,7 +549,10 @@ class _CustomerField extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: theme.colorScheme.outlineVariant),
             ),
-            child: Text(value.isEmpty ? '-' : value),
+            child: Text(
+              value.isEmpty ? '-' : value,
+              style: AppFormStyles.controlTextStyle(context),
+            ),
           ),
       ],
     );
@@ -607,14 +615,18 @@ class _DetailsCard extends StatelessWidget {
               );
               final search = SizedBox(
                 width: stacked ? double.infinity : 280,
+                height: AppFormStyles.controlHeight,
                 child: TextField(
                   controller: searchController,
                   onChanged: onSearchChanged,
-                  decoration: const InputDecoration(
+                  style: AppFormStyles.controlTextStyle(context),
+                  decoration: AppFormStyles.decoration(
+                    context,
                     hintText: 'Search',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      size: AppFormStyles.controlIconSize,
+                    ),
                   ),
                 ),
               );
@@ -691,7 +703,7 @@ class _DetailsCard extends StatelessWidget {
             isExpanded: state.isCccExpanded,
             onToggle: () => controller.toggleAccordion('CCC'),
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: AppFormStyles.panelPadding,
               decoration: BoxDecoration(
                 color: const Color(0xFFF7F9FC),
                 borderRadius: BorderRadius.circular(6),
@@ -760,7 +772,7 @@ class _AccordionSection extends StatelessWidget {
           ),
           if (isExpanded)
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: child,
             ),
         ],
@@ -788,51 +800,54 @@ class _AddCustomItemForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final description = TextField(
-      key: const Key('files_add_description'),
-      controller: descriptionController,
-      decoration: const InputDecoration(
-        labelText: 'Description',
-        border: OutlineInputBorder(),
-        isDense: true,
+    final description = SizedBox(
+      height: AppFormStyles.controlHeight,
+      child: TextField(
+        key: const Key('files_add_description'),
+        controller: descriptionController,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: 'Description'),
       ),
     );
-    final specification = TextField(
-      key: const Key('files_add_specification'),
-      controller: specificationController,
-      decoration: const InputDecoration(
-        labelText: 'Specification',
-        border: OutlineInputBorder(),
-        isDense: true,
+    final specification = SizedBox(
+      height: AppFormStyles.controlHeight,
+      child: TextField(
+        key: const Key('files_add_specification'),
+        controller: specificationController,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(
+          context,
+          labelText: 'Specification',
+        ),
       ),
     );
-    final unit = TextField(
-      key: const Key('files_add_unit'),
-      controller: unitController,
-      decoration: const InputDecoration(
-        labelText: 'Unit',
-        border: OutlineInputBorder(),
-        isDense: true,
+    final unit = SizedBox(
+      height: AppFormStyles.controlHeight,
+      child: TextField(
+        key: const Key('files_add_unit'),
+        controller: unitController,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: 'Unit'),
       ),
     );
-    final quantity = TextField(
-      key: const Key('files_add_quantity'),
-      controller: quantityController,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(
-        labelText: 'Quantity',
-        border: OutlineInputBorder(),
-        isDense: true,
+    final quantity = SizedBox(
+      height: AppFormStyles.controlHeight,
+      child: TextField(
+        key: const Key('files_add_quantity'),
+        controller: quantityController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: 'Quantity'),
       ),
     );
-    final rate = TextField(
-      key: const Key('files_add_rate'),
-      controller: rateController,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(
-        labelText: 'Rate',
-        border: OutlineInputBorder(),
-        isDense: true,
+    final rate = SizedBox(
+      height: AppFormStyles.controlHeight,
+      child: TextField(
+        key: const Key('files_add_rate'),
+        controller: rateController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: 'Rate'),
       ),
     );
     final submit = FilledButton.icon(
@@ -983,7 +998,7 @@ class _LomTable extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             decoration: BoxDecoration(
               color: const Color(0xFFF7F9FC),
               borderRadius: const BorderRadius.vertical(
@@ -1203,7 +1218,7 @@ class _SurfaceCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(padding: const EdgeInsets.all(18), child: child),
+      child: Padding(padding: AppFormStyles.panelPadding, child: child),
     );
   }
 }

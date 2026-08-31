@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/app_scope.dart';
+import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../design_workspace/data/repositories/http_core_calculation_repository.dart';
@@ -107,7 +108,7 @@ class _CoreModelScreenState extends State<CoreModelScreen> {
             return LoadingOverlay(
               isLoading: state.isBusy,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                padding: AppFormStyles.pagePadding,
                 child: state.hasDesignContext
                     ? _WorkspaceView(controller: controller, state: state)
                     : _CoreModelEmptyState(routeId: widget.routeDesignId),
@@ -165,7 +166,9 @@ class _WorkspaceView extends StatelessWidget {
                   ],
                 ),
                 child: Padding(
-                  padding: EdgeInsets.all(stacked ? 14 : 24),
+                  padding: stacked
+                      ? AppFormStyles.compactPanelPadding
+                      : AppFormStyles.panelPadding,
                   child: stacked
                       ? Column(
                           children: [
@@ -306,7 +309,7 @@ class _MetricsCard extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: AppFormStyles.panelPadding,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
@@ -537,7 +540,7 @@ class _DiagramCard extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: AppFormStyles.panelPadding,
           child: steps.isEmpty
               ? SizedBox(
                   height: compact ? 390 : 600,
@@ -570,7 +573,7 @@ class _DiagramCard extends StatelessWidget {
                           ),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: AppFormStyles.panelPadding,
                           child: CustomPaint(
                             painter: _CoreDiagramPainter(
                               steps: steps,
@@ -734,7 +737,7 @@ class _CoreModelEmptyState extends StatelessWidget {
         child: Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: AppFormStyles.panelPadding,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -895,7 +898,7 @@ class _SectionCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: AppFormStyles.panelPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1016,15 +1019,15 @@ Widget _textField({
 }) {
   return SizedBox(
     width: 164,
-    child: TextFormField(
-      key: ValueKey<String>('core-field-$label-$value-$readOnly'),
-      initialValue: value,
-      readOnly: readOnly || onChanged == null,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
+    height: AppFormStyles.controlHeight,
+    child: Builder(
+      builder: (context) => TextFormField(
+        key: ValueKey<String>('core-field-$label-$value-$readOnly'),
+        initialValue: value,
+        readOnly: readOnly || onChanged == null,
+        onChanged: onChanged,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: label),
       ),
     ),
   );
@@ -1037,14 +1040,14 @@ Widget _narrowTextField({
 }) {
   return SizedBox(
     width: 138,
-    child: TextFormField(
-      key: ValueKey<String>('core-narrow-field-$label-$value'),
-      initialValue: value,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
+    height: AppFormStyles.controlHeight,
+    child: Builder(
+      builder: (context) => TextFormField(
+        key: ValueKey<String>('core-narrow-field-$label-$value'),
+        initialValue: value,
+        onChanged: onChanged,
+        style: AppFormStyles.controlTextStyle(context),
+        decoration: AppFormStyles.decoration(context, labelText: label),
       ),
     ),
   );
@@ -1070,20 +1073,22 @@ Widget _dropdownField(
 
   return SizedBox(
     width: 164,
+    height: AppFormStyles.controlHeight,
     child: DropdownButtonFormField<String>(
       key: ValueKey<String>('core-dropdown-$label-$effectiveValue'),
       initialValue: effectiveValue,
       isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
+      style: AppFormStyles.controlTextStyle(context),
+      decoration: AppFormStyles.decoration(context, labelText: label),
       items: items
           .map(
             (item) => DropdownMenuItem<String>(
               value: item,
-              child: Text(item, overflow: TextOverflow.ellipsis),
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                style: AppFormStyles.controlTextStyle(context),
+              ),
             ),
           )
           .toList(growable: false),
