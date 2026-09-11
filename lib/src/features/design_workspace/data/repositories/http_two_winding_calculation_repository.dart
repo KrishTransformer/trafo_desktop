@@ -12,8 +12,9 @@ class HttpTwoWindingCalculationRepository
   @override
   Future<TwoWindingDesign> calculate(TwoWindingDesign request) {
     return _apiClient.post<TwoWindingDesign>(
-      service: ApiService.common,
+      service: ApiService.core,
       path: '/calculate/2windings/circular',
+      headers: const {'User-Calc': 'true'},
       data: request.toJson(),
       decoder: (data) => TwoWindingDesign.fromJson(
         Map<String, dynamic>.from(data as Map<Object?, Object?>),

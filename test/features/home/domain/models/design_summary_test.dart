@@ -16,14 +16,14 @@ void main() {
     expect(design.isMultiWinding, isTrue);
   });
 
-  test('legacy records with a multiWinding payload are multi designs', () {
+  test('records without designType default to two-winding designs', () {
     final design = DesignSummary.fromJson(<String, dynamic>{
       'id': 'entity-2',
       'designId': '500k-M54321',
       'multiWindings': <String, dynamic>{'kVA': 500},
     });
 
-    expect(design.type, DesignType.multiWinding);
+    expect(design.type, DesignType.twoWinding);
   });
 
   test('two-winding records remain the default', () {

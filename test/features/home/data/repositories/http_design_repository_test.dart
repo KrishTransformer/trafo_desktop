@@ -120,10 +120,36 @@ void main() {
         'attributeValue': '250k',
         'sortAttribute': 'updatedAt',
         'sortOrder': 'DESC',
+        'filters': <String, dynamic>{},
       });
       expect(response.data.first.ownerId, 'legacy-owner-7');
     },
   );
+
+  test('fetchDesigns sends the type filter in the paginated request', () async {
+    adapter.nextResponseJson = <String, dynamic>{
+      'data': <Map<String, dynamic>>[],
+      'total': 0,
+    };
+
+    await repository.fetchDesigns(
+      const DesignListQuery(
+        offset: 1,
+        size: 20,
+        sortAttribute: 'updatedAt',
+        sortOrder: 'DESC',
+        filters: <String, dynamic>{
+          'designType': <String>['multi'],
+        },
+      ),
+    );
+
+    expect(adapter.lastOptions?.queryParameters['offset'], 1);
+    expect(adapter.lastOptions?.queryParameters['size'], 20);
+    expect(adapter.lastDecodedBody, <String, dynamic>{
+      'designType': <String>['multi'],
+    });
+  });
 
   test('deleteDesign uses the documented entity delete endpoint', () async {
     adapter.nextResponseJson = <String, dynamic>{'deleted': true};

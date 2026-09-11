@@ -164,13 +164,28 @@ class MultiWindingController extends ChangeNotifier {
         _windingsByConfiguration['2_WDG_LV_HV_MAIN']!;
     final locks = _normalizeLocks(_map(source['lockedAttributes']));
     final windingData = _map(source['part2Windings']);
+    final core = _map(source['core']);
+    final tank = _map(source['tank']);
+    final radialGaps = _buildRadialGaps(source, configuration);
     final payload = <String, dynamic>{
       'designId': _nullable(source['designId']),
       'windingSelection': _selectionFor(configuration),
       'kVA': _integer(source['kVA']),
-      'kValue': 0.45,
+      'kValue': _number(source['kValue']) ?? 0.45,
+      'frequency': _number(source['frequency']) ?? 50,
       'fluxDensity': _number(source['fluxDensity']),
       'vectorGroup': _nullable(source['vectorGroup']),
+      'buildFactor': _number(source['buildFactor']),
+      'limitW': _number(source['limitW']),
+      'limitEz': _number(source['limitEz']),
+      'tankLoss': _number(tank['tankLoss']),
+      'loadLoss': _number(source['loadLoss']),
+      'coreLoss': _number(source['coreLoss']),
+      'ambientTemp': _number(source['ambientTemp']),
+      'windingTemp': _number(source['windingTemp']),
+      'topOilTemp': _number(source['topOilTemp']) ?? 50,
+      'eRadiatorType': _nullable(source['eRadiatorType']),
+      'isOLTC': source['isOLTC'] == true,
       'lowVoltage': _integer(source['primaryVoltage'] ?? source['lowVoltage']),
       'highVoltage': _integer(
         source['secondaryVoltage'] ?? source['highVoltage'],
@@ -180,15 +195,24 @@ class MultiWindingController extends ChangeNotifier {
       'tapStepNegative': _integer(source['tapStepsNegative']),
       'core': <String, dynamic>{
         'coreDia': _isLocked(locks, 'coreLock', 'coreDia')
-            ? _integer(_map(source['core'])['coreDia'])
+            ? _integer(core['coreDia'])
             : null,
         'limbHt': _isLocked(locks, 'coreLock', 'limbHt')
-            ? _integer(_map(source['core'])['limbHt'])
+            ? _integer(core['limbHt'])
             : null,
+        'coreMaterial': _nullable(core['coreMaterial']),
+        'coreType': _nullable(core['coreType']),
+      },
+      'tank': <String, dynamic>{
+        'tankLoss': _number(tank['tankLoss']),
+        'wdgToTankGap': _number(tank['wdgToTankGap']),
+        'connectionGap': _number(tank['connectionGap']),
+        'topYokeToCoverGap': _number(tank['topYokeToCoverGap']),
       },
       'lockedAttributes': locks,
       'cost': _map(source['cost']),
-      'radialGaps': _buildRadialGaps(source, configuration),
+      'radialGaps': radialGaps,
+      ...radialGaps,
     };
     for (final windingId in active) {
       final apiKey = _lockGroupByWinding[windingId]!;
@@ -199,6 +223,14 @@ class MultiWindingController extends ChangeNotifier {
       );
       payload['${prefix}CurrentDensity'] = _number(
         source['${prefix}CurrentDensity'],
+      );
+      final materialField = windingId == 'lv'
+          ? 'lVConductorMaterial'
+          : windingId == 'hvMain'
+          ? 'hVConductorMaterial'
+          : '${prefix}ConductorMaterial';
+      payload['${prefix}ConductorMaterial'] = _materialCode(
+        source[materialField],
       );
       payload[apiKey] = _buildWinding(
         _map(windingData[windingId]),
@@ -248,9 +280,7 @@ class MultiWindingController extends ChangeNotifier {
       ],
       _ => ['coreToLv', 'lvToHv'],
     };
-    return <String, dynamic>{
-      for (final key in active) key: _nullable(all[key]),
-    };
+    return <String, dynamic>{for (final key in active) key: _number(all[key])};
   }
 
   Map<String, dynamic> _buildWinding(
@@ -282,7 +312,7 @@ class MultiWindingController extends ChangeNotifier {
     'noInParallel': _isLocked(locks, '', 'noInParallel')
         ? _formatParallelCount(winding)
         : '',
-    'noOfLayers': _integer(winding['noOfLayers']),
+    'noOfLayers': _number(winding['noOfLayers']),
     'ducts': _integer(winding['ducts']),
     'ductSize': _resolvedDuctSize(winding, windingType),
     'condInsulation': _number(winding['condInsulation']),
@@ -445,9 +475,17 @@ class MultiWindingController extends ChangeNotifier {
     _putIfPresent(merged, 'primaryVoltage', ratings['lowVoltage']);
     _putIfPresent(merged, 'secondaryVoltage', ratings['highVoltage']);
     _putIfPresent(merged, 'fluxDensity', ratings['fluxDensity']);
-    _putIfPresent(merged, 'vectorGroup', inputs['vectorGroup'] ?? common['vectorGroup']);
+    _putIfPresent(
+      merged,
+      'vectorGroup',
+      inputs['vectorGroup'] ?? common['vectorGroup'],
+    );
     _putIfPresent(merged, 'kValue', ratings['kValue'] ?? common['kValue']);
-    _putIfPresent(merged, 'frequency', ratings['frequency'] ?? common['frequency']);
+    _putIfPresent(
+      merged,
+      'frequency',
+      ratings['frequency'] ?? common['frequency'],
+    );
     _putIfPresent(
       merged,
       'lowVoltage',
@@ -494,8 +532,18 @@ class MultiWindingController extends ChangeNotifier {
       ]),
     );
     _putIfPresent(merged, 'buildFactor', common['buildFactor']);
+    _putIfPresent(
+      merged,
+      'revisedVoltsPerTurn',
+      results['revisedVoltsPerTurn'],
+    );
+    _putIfPresent(merged, 'revisedFluxDensity', results['revisedFluxDensity']);
     _putIfPresent(merged, 'limitEz', responseEz['limit']);
-    _putIfPresent(merged, 'ez', responseEz['value'] ?? impedance['ek'] ?? common['ek']);
+    _putIfPresent(
+      merged,
+      'ez',
+      responseEz['value'] ?? impedance['ek'] ?? common['ek'],
+    );
     _putIfPresent(
       merged,
       'coreLoss',
@@ -507,7 +555,14 @@ class MultiWindingController extends ChangeNotifier {
     );
     _putIfPresent(merged, 'ambientTemp', lvWinding['ambientTemp']);
     _putIfPresent(merged, 'windingTemp', lvWinding['windingTemp']);
-    _putIfPresent(merged, 'topOilTemp', tankAndOil['topOilTemperature']);
+    _putIfPresent(
+      merged,
+      'topOilTemp',
+      tankAndOil['topOilTemp'] ??
+          tankAndOil['topOilTemperature'] ??
+          results['topOilTemp'] ??
+          common['topOilTemp'],
+    );
     _putIfPresent(merged, 'eRadiatorType', inputs['eRadiatorType']);
     merged['core'] = <String, dynamic>{
       ..._map(merged['core']),
@@ -538,6 +593,11 @@ class MultiWindingController extends ChangeNotifier {
           results['revisedVoltsPerTurn'] ??
           results['voltsPerTurn'] ??
           _map(merged['performance'])['voltsPerTurn'],
+      'kW55':
+          tankAndOil['kw55'] ??
+          results['kW55'] ??
+          common['kW55'] ??
+          _map(merged['performance'])['kW55'],
     };
     merged['tank'] = <String, dynamic>{
       ..._map(merged['tank']),
@@ -551,8 +611,7 @@ class MultiWindingController extends ChangeNotifier {
           _map(merged['tank'])['topYokeToCoverGap'],
       'tankLength':
           tankAndOil['tankLength'] ?? _map(merged['tank'])['tankLength'],
-      'tankWidth':
-          tankAndOil['tankWidth'] ?? _map(merged['tank'])['tankWidth'],
+      'tankWidth': tankAndOil['tankWidth'] ?? _map(merged['tank'])['tankWidth'],
       'tankHeight':
           tankAndOil['tankHeight'] ?? _map(merged['tank'])['tankHeight'],
       'tankCapacity':
@@ -590,7 +649,8 @@ class MultiWindingController extends ChangeNotifier {
           tankAndOil['totalOil'] ??
           _map(merged['tankAndOilFormulas'])['totalOil'],
       'oilWeight':
-          tankAndOil['oilWeight'] ?? _map(merged['tankAndOilFormulas'])['oilWeight'],
+          tankAndOil['oilWeight'] ??
+          _map(merged['tankAndOilFormulas'])['oilWeight'],
       'insulationWeight':
           tankAndOil['insulationWeight'] ??
           _map(merged['tankAndOilFormulas'])['insulationWeight'],
@@ -695,12 +755,12 @@ class MultiWindingController extends ChangeNotifier {
         ..._mergeWindingState(
           input,
           result,
-          discDuctSize:
-              entry.key == 'lv'
-                  ? lvWinding['lvDiscDuctsSize']
-                  : entry.key == 'hvMain'
-                  ? hvWinding['hvDiscDuctsSize'] ?? _map(hvWinding['model'])['ductSize']
-                  : null,
+          discDuctSize: entry.key == 'lv'
+              ? lvWinding['lvDiscDuctsSize']
+              : entry.key == 'hvMain'
+              ? hvWinding['hvDiscDuctsSize'] ??
+                    _map(hvWinding['model'])['ductSize']
+              : null,
         ),
       };
     }
@@ -735,7 +795,9 @@ class MultiWindingController extends ChangeNotifier {
       'conductors': conductorCosts,
     };
     merged['lockedAttributes'] = _normalizeLocks(
-      responseLocks.isNotEmpty ? responseLocks : _map(request['lockedAttributes']),
+      responseLocks.isNotEmpty
+          ? responseLocks
+          : _map(request['lockedAttributes']),
     );
     merged['calculationResponse'] = response;
     return MultiWindingDesign.fromJson(merged);
@@ -792,116 +854,113 @@ class MultiWindingController extends ChangeNotifier {
         ? '${resultModel['breadth']} L X ${resultModel['height']} B'
         : null;
     return <String, dynamic>{
-      'turnsPerPhase':
-          _pickDefined(<Object?>[
-            inputModel['turnsPerPhase'],
-            resultModel['turnsPerPhase'],
-          ]),
-      'phaseCurrent':
-          _pickDefined(<Object?>[
-            inputModel['phaseCurrent'],
-            resultModel['phaseCurrent'],
-          ]),
-      'currentDensity':
-          _pickDefined(<Object?>[
-            inputModel['currentDensity'],
-            resultModel['currentDensity'],
-          ]),
-      'condCrossSec':
-          _pickDefined(<Object?>[
-            inputModel['condCrossSec'],
-            resultModel['condCrossSec'],
-          ]),
-      'conductorSizes':
-          _pickDefined(<Object?>[
-            inputModel['conductorSizes'],
-            formattedConductorSizes,
-          ]),
-      'condInsulation':
-          _pickDefined(<Object?>[
-            inputModel['condInsulation'],
-            resultModel['conductorInsulation'],
-          ]),
-      'noInParallel':
-          _pickDefined(<Object?>[
-            inputModel['noInParallel'],
-            _formatParallelFromValues(
-              resultModel['radialParallelCond'],
-              resultModel['axialParallelCond'],
-            ),
-          ]),
-      'windingLength':
-          _pickDefined(<Object?>[
-            inputModel['windingLength'],
-            resultModel['windingLength'],
-          ]),
-      'noOfLayers':
-          _pickDefined(<Object?>[
-            inputModel['noOfLayers'],
-            resultModel['noOfLayers'],
-          ]),
-      'interLayerInsulation':
-          _pickDefined(<Object?>[
-            inputModel['interLayerInsulation'],
-            resultModel['interLayerInsulation'],
-          ]),
-      'ducts': _pickDefined(<Object?>[inputModel['ducts'], resultModel['ducts']]),
-      'ductSize':
-          _pickDefined(<Object?>[inputModel['ductSize'], resultModel['ductSize']]),
-      'discDuctSize':
-          _pickDefined(<Object?>[discDuctSize, inputModel['discDuctSize']]),
+      'turnsPerPhase': _pickDefined(<Object?>[
+        inputModel['turnsPerPhase'],
+        resultModel['turnsPerPhase'],
+      ]),
+      'phaseCurrent': _pickDefined(<Object?>[
+        inputModel['phaseCurrent'],
+        resultModel['phaseCurrent'],
+      ]),
+      'currentDensity': _pickDefined(<Object?>[
+        inputModel['currentDensity'],
+        resultModel['currentDensity'],
+      ]),
+      'condCrossSec': _pickDefined(<Object?>[
+        inputModel['condCrossSec'],
+        resultModel['condCrossSec'],
+      ]),
+      'conductorSizes': _pickDefined(<Object?>[
+        inputModel['conductorSizes'],
+        formattedConductorSizes,
+      ]),
+      'condInsulation': _pickDefined(<Object?>[
+        inputModel['condInsulation'],
+        resultModel['conductorInsulation'],
+      ]),
+      'noInParallel': _pickDefined(<Object?>[
+        inputModel['noInParallel'],
+        _formatParallelFromValues(
+          resultModel['radialParallelCond'],
+          resultModel['axialParallelCond'],
+        ),
+      ]),
+      'windingLength': _pickDefined(<Object?>[
+        inputModel['windingLength'],
+        resultModel['windingLength'],
+      ]),
+      'noOfLayers': _pickDefined(<Object?>[
+        inputModel['noOfLayers'],
+        resultModel['noOfLayers'],
+      ]),
+      'interLayerInsulation': _pickDefined(<Object?>[
+        inputModel['interLayerInsulation'],
+        resultModel['interLayerInsulation'],
+      ]),
+      'ducts': _pickDefined(<Object?>[
+        inputModel['ducts'],
+        resultModel['ducts'],
+      ]),
+      'ductSize': _pickDefined(<Object?>[
+        inputModel['ductSize'],
+        resultModel['ductSize'],
+      ]),
+      'discDuctSize': _pickDefined(<Object?>[
+        discDuctSize,
+        inputModel['discDuctSize'],
+      ]),
       'turnsLayers': inputModel['turnsLayers'],
-      'endClearances':
-          _pickDefined(<Object?>[
-            inputModel['endClearances'],
-            resultModel['endClearance'],
-          ]),
-      'eddyStrayLoss':
-          _pickDefined(<Object?>[
-            inputModel['eddyStrayLoss'],
-            resultModel['strayLoss'],
-          ]),
-      'tempGradDegC':
-          _pickDefined(<Object?>[
-            inputModel['tempGradDegC'],
-            resultModel['gradient'],
-          ]),
-      'weightBareInsulated':
-          _pickDefined(<Object?>[
-            inputModel['weightBareInsulated'],
-            _formatWeightPair(
-              resultModel['bareWeight'],
-              resultModel['insulatedWeight'],
-            ),
-          ]),
-      'loadLoss':
-          _pickDefined(<Object?>[inputModel['loadLoss'], resultModel['loadLoss']]),
-      'radialParallelCond':
-          _pickDefined(<Object?>[
-            inputModel['radialParallelCond'],
-            resultModel['radialParallelCond'],
-          ]),
-      'axialParallelCond':
-          _pickDefined(<Object?>[
-            inputModel['axialParallelCond'],
-            resultModel['axialParallelCond'],
-          ]),
-      'condBreadth':
-          _pickDefined(<Object?>[inputModel['condBreadth'], resultModel['breadth']]),
-      'condHeight':
-          _pickDefined(<Object?>[inputModel['condHeight'], resultModel['height']]),
-      'conductorDiameter':
-          _pickDefined(<Object?>[
-            inputModel['conductorDiameter'],
-            resultModel['conductorDiameter'],
-          ]),
-      'isConductorRound':
-          _pickDefined(<Object?>[
-            inputModel['isConductorRound'],
-            resultModel['isConductorRound'],
-          ]),
-      'isEnamel':
-          _pickDefined(<Object?>[inputModel['isEnamel'], resultModel['isEnamel']]),
+      'endClearances': _pickDefined(<Object?>[
+        inputModel['endClearances'],
+        resultModel['endClearance'],
+      ]),
+      'eddyStrayLoss': _pickDefined(<Object?>[
+        inputModel['eddyStrayLoss'],
+        resultModel['strayLoss'],
+      ]),
+      'tempGradDegC': _pickDefined(<Object?>[
+        inputModel['tempGradDegC'],
+        resultModel['gradient'],
+      ]),
+      'weightBareInsulated': _pickDefined(<Object?>[
+        inputModel['weightBareInsulated'],
+        _formatWeightPair(
+          resultModel['bareWeight'],
+          resultModel['insulatedWeight'],
+        ),
+      ]),
+      'loadLoss': _pickDefined(<Object?>[
+        inputModel['loadLoss'],
+        resultModel['loadLoss'],
+      ]),
+      'radialParallelCond': _pickDefined(<Object?>[
+        inputModel['radialParallelCond'],
+        resultModel['radialParallelCond'],
+      ]),
+      'axialParallelCond': _pickDefined(<Object?>[
+        inputModel['axialParallelCond'],
+        resultModel['axialParallelCond'],
+      ]),
+      'condBreadth': _pickDefined(<Object?>[
+        inputModel['condBreadth'],
+        resultModel['breadth'],
+      ]),
+      'condHeight': _pickDefined(<Object?>[
+        inputModel['condHeight'],
+        resultModel['height'],
+      ]),
+      'conductorDiameter': _pickDefined(<Object?>[
+        inputModel['conductorDiameter'],
+        resultModel['conductorDiameter'],
+      ]),
+      'isConductorRound': _pickDefined(<Object?>[
+        inputModel['isConductorRound'],
+        resultModel['isConductorRound'],
+      ]),
+      'isEnamel': _pickDefined(<Object?>[
+        inputModel['isEnamel'],
+        resultModel['isEnamel'],
+      ]),
     };
   }
 
@@ -913,14 +972,16 @@ class MultiWindingController extends ChangeNotifier {
     final axialText = _text(axial);
     final radialValue = _number(radial);
     final axialValue = _number(axial);
-    final total =
-        radialValue != null && axialValue != null
+    final total = radialValue != null && axialValue != null
         ? radialValue * axialValue
         : '';
     return 'Rad $radialText X Axi $axialText = $total';
   }
 
-  static String? _formatWeightPair(Object? bareWeight, Object? insulatedWeight) {
+  static String? _formatWeightPair(
+    Object? bareWeight,
+    Object? insulatedWeight,
+  ) {
     if (bareWeight == null && insulatedWeight == null) {
       return null;
     }
@@ -987,8 +1048,13 @@ class MultiWindingController extends ChangeNotifier {
   static String _text(Object? value) => value?.toString() ?? '';
   static Object? _nullable(Object? value) =>
       _text(value).trim().isEmpty ? null : value;
-  static int? _integer(Object? value) => int.tryParse(_text(value));
+  static int? _integer(Object? value) => num.tryParse(_text(value))?.truncate();
   static double? _number(Object? value) => double.tryParse(_text(value));
+  static String? _materialCode(Object? value) => switch (_text(value)) {
+    'Cu' || 'COPPER' => 'COPPER',
+    'Al' || 'ALUMINIUM' => 'ALUMINIUM',
+    _ => null,
+  };
   static bool _isLocked(
     Map<String, dynamic> locks,
     String group,

@@ -66,13 +66,6 @@ class DesignSummary {
     if (designType?.trim().toLowerCase() == 'multi') {
       return DesignType.multiWinding;
     }
-
-    // Older MultiWdg records did not have an explicit design type.
-    if ((designType == null || designType!.trim().isEmpty) &&
-        _hasValue(multiWindings)) {
-      return DesignType.multiWinding;
-    }
-
     return DesignType.twoWinding;
   }
 
@@ -90,13 +83,5 @@ class DesignSummary {
   static String? _readOptionalString(Map<String, dynamic> json, String key) {
     final value = json[key];
     return value is String && value.isNotEmpty ? value : null;
-  }
-
-  static bool _hasValue(Object? value) {
-    return switch (value) {
-      null => false,
-      String value => value.trim().isNotEmpty,
-      _ => true,
-    };
   }
 }

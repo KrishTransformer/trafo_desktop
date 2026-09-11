@@ -256,7 +256,7 @@ const Map<String, Object?> kTwoWindingDefaultJson = <String, Object?>{
   'turnsPerTap': '',
   'ambientTemp': '',
   'windingTemp': '',
-  'topOilTemp': '',
+  'topOilTemp': '50',
   'dryType': false,
   'dryTempClass': '',
   'radiatorWidth': 226,

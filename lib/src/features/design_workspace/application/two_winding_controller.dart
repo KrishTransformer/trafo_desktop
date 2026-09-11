@@ -43,12 +43,14 @@ class TwoWindingController extends ChangeNotifier {
       return;
     }
 
-    final design = _buildInitialDesign(initialSummary);
+    // The new-design route must never inherit a saved entity or its results.
+    final summary = _routeId == 'new' ? null : initialSummary;
+    final design = _buildInitialDesign(summary);
     final metadata = TwoWindingMetadata(
       routeId: _routeId,
-      entityId: initialSummary?.id ?? (_routeId == 'new' ? '' : _routeId),
-      designId: initialSummary?.designId ?? design.stringAt('designId'),
-      createdAt: initialSummary?.createdAt ?? '',
+      entityId: summary?.id ?? (_routeId == 'new' ? '' : _routeId),
+      designId: summary?.designId ?? design.stringAt('designId'),
+      createdAt: summary?.createdAt ?? '',
     );
 
     _baselineDesign = design;
@@ -599,6 +601,14 @@ class TwoWindingController extends ChangeNotifier {
 
   Map<String, dynamic> _buildCalculatePayload(TwoWindingDesign design) {
     final payload = design.toJson();
+    if (payload['frequency'] == null ||
+        payload['frequency'].toString().trim().isEmpty) {
+      payload['frequency'] = 50;
+    }
+    if (payload['topOilTemp'] == null ||
+        payload['topOilTemp'].toString().trim().isEmpty) {
+      payload['topOilTemp'] = 50;
+    }
     final lockedAttributes = design.mapAt('lockedAttributes');
 
     final innerLocks =

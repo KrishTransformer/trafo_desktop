@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_environment.dart';
@@ -74,27 +75,32 @@ class AppRouter {
                ),
                StatefulShellBranch(
                  routes: [
-                  GoRoute(
-                      path: RoutePaths.multiWindings,
-                      builder: (context, state) => MultiWindingScreen(
-                        routeDesignId: 'new',
-                        initialDesignSummary: state.extra is DesignSummary
-                            ? state.extra as DesignSummary
-                            : null,
-                      ),
-                      routes: [
-                        GoRoute(
-                          path: ':designId',
-                        builder: (context, state) => MultiWindingScreen(
-                            routeDesignId:
-                                state.pathParameters['designId'] ?? 'new',
-                            initialDesignSummary: state.extra is DesignSummary
-                                ? state.extra as DesignSummary
-                                : null,
-                          ),
-                        ),
-                      ],
-                    ),
+                   GoRoute(
+                     path: RoutePaths.multiWindings,
+                     builder: (context, state) => MultiWindingScreen(
+                       key: _multiWindingPageKey('new', state),
+                       routeDesignId: 'new',
+                       initialDesignSummary: state.extra is DesignSummary
+                           ? state.extra as DesignSummary
+                           : null,
+                     ),
+                     routes: [
+                       GoRoute(
+                         path: ':designId',
+                         builder: (context, state) => MultiWindingScreen(
+                           key: _multiWindingPageKey(
+                             state.pathParameters['designId'] ?? 'new',
+                             state,
+                           ),
+                           routeDesignId:
+                               state.pathParameters['designId'] ?? 'new',
+                           initialDesignSummary: state.extra is DesignSummary
+                               ? state.extra as DesignSummary
+                               : null,
+                         ),
+                       ),
+                     ],
+                   ),
                  ],
                ),
                StatefulShellBranch(
@@ -102,6 +108,7 @@ class AppRouter {
                    GoRoute(
                      path: RoutePaths.twoWindings,
                      builder: (context, state) => TwoWindingScreen(
+                       key: _twoWindingPageKey('new', state),
                        routeDesignId: 'new',
                        initialDesignSummary: state.extra is DesignSummary
                            ? state.extra as DesignSummary
@@ -111,6 +118,10 @@ class AppRouter {
                        GoRoute(
                          path: ':designId',
                          builder: (context, state) => TwoWindingScreen(
+                           key: _twoWindingPageKey(
+                             state.pathParameters['designId'] ?? 'new',
+                             state,
+                           ),
                            routeDesignId:
                                state.pathParameters['designId'] ?? 'new',
                            initialDesignSummary: state.extra is DesignSummary
@@ -130,16 +141,16 @@ class AppRouter {
                          const CoreModelScreen(routeDesignId: ''),
                      routes: [
                        GoRoute(
-                        path: ':designId',
-                        builder: (context, state) => CoreModelScreen(
-                          routeDesignId:
-                              state.pathParameters['designId'] ?? '',
-                          initialDesignSummary: state.extra is DesignSummary
-                              ? state.extra as DesignSummary
-                              : DesignNavigationMemory.summaryFor(
-                                  state.pathParameters['designId'] ?? '',
-                                ),
-                        ),
+                         path: ':designId',
+                         builder: (context, state) => CoreModelScreen(
+                           routeDesignId:
+                               state.pathParameters['designId'] ?? '',
+                           initialDesignSummary: state.extra is DesignSummary
+                               ? state.extra as DesignSummary
+                               : DesignNavigationMemory.summaryFor(
+                                   state.pathParameters['designId'] ?? '',
+                                 ),
+                         ),
                        ),
                      ],
                    ),
@@ -154,14 +165,14 @@ class AppRouter {
                      routes: [
                        GoRoute(
                          path: ':designId',
-                        builder: (context, state) => FabricationScreen(
-                          routeDesignId:
-                              state.pathParameters['designId'] ?? '',
-                          initialDesignSummary: state.extra is DesignSummary
-                              ? state.extra as DesignSummary
-                              : DesignNavigationMemory.summaryFor(
-                                  state.pathParameters['designId'] ?? '',
-                                ),
+                         builder: (context, state) => FabricationScreen(
+                           routeDesignId:
+                               state.pathParameters['designId'] ?? '',
+                           initialDesignSummary: state.extra is DesignSummary
+                               ? state.extra as DesignSummary
+                               : DesignNavigationMemory.summaryFor(
+                                   state.pathParameters['designId'] ?? '',
+                                 ),
                          ),
                        ),
                      ],
@@ -177,14 +188,14 @@ class AppRouter {
                      routes: [
                        GoRoute(
                          path: ':designId',
-                        builder: (context, state) => FilesScreen(
-                          routeDesignId:
-                              state.pathParameters['designId'] ?? '',
-                          initialDesignSummary: state.extra is DesignSummary
-                              ? state.extra as DesignSummary
-                              : DesignNavigationMemory.summaryFor(
-                                  state.pathParameters['designId'] ?? '',
-                                ),
+                         builder: (context, state) => FilesScreen(
+                           routeDesignId:
+                               state.pathParameters['designId'] ?? '',
+                           initialDesignSummary: state.extra is DesignSummary
+                               ? state.extra as DesignSummary
+                               : DesignNavigationMemory.summaryFor(
+                                   state.pathParameters['designId'] ?? '',
+                                 ),
                          ),
                        ),
                      ],
@@ -222,3 +233,21 @@ class AppRouter {
 
   final GoRouter router;
 }
+
+Key _twoWindingPageKey(String designId, GoRouterState state) => ValueKey((
+  'two-winding',
+  designId,
+  designId == 'new'
+      ? state.uri.queryParameters['draft'] ??
+            DesignNavigationMemory.twoWindingDraftRevision
+      : 0,
+));
+
+Key _multiWindingPageKey(String designId, GoRouterState state) => ValueKey((
+  'multi-winding',
+  designId,
+  designId == 'new'
+      ? state.uri.queryParameters['draft'] ??
+            DesignNavigationMemory.multiWindingDraftRevision
+      : 0,
+));

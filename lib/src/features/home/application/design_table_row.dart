@@ -42,7 +42,10 @@ class DesignTableRow {
         coreData['limbHt'],
         coreData['cenDist'],
       ], separator: ' x '),
-      voltsPerTurn: _formatValue(designData['voltsPerTurn']),
+      voltsPerTurn: _formatValue(
+        designData['voltsPerTurn'] ??
+            _readNestedMap(designData['performance'])['voltsPerTurn'],
+      ),
       losses: _joinValues(<Object?>[
         designData['coreLoss'],
         designData['loadLoss'],

@@ -40,10 +40,10 @@ class DesktopNavigationShell extends StatelessWidget {
       ),
       body: SafeArea(
         child: _ContentPane(
-          child: navigationShell,
           showDrawerButton: true,
           destination: currentDestination,
           contextLabel: contextLabel,
+          child: navigationShell,
         ),
       ),
     );
@@ -53,7 +53,7 @@ class DesktopNavigationShell extends StatelessWidget {
     BuildContext context,
     _ShellDestination destination,
   ) {
-    DesignNavigationMemory.remember(destination);
+    DesignNavigationMemory._remember(destination);
     context.go(destination.route);
   }
 
@@ -71,9 +71,27 @@ class DesktopNavigationShell extends StatelessWidget {
     if (navigation.scope == _NavigationScope.administration) {
       return const [
         home,
-        _ShellDestination(label: 'Profile', icon: Icons.person_outline, selectedIcon: Icons.person, route: RoutePaths.profile, branchIndex: 6),
-        _ShellDestination(label: 'Users', icon: Icons.people_outline, selectedIcon: Icons.people, route: RoutePaths.users, branchIndex: 7),
-        _ShellDestination(label: 'LOM Material Rate', icon: Icons.tune_outlined, selectedIcon: Icons.tune, route: RoutePaths.lomCost, branchIndex: 8),
+        _ShellDestination(
+          label: 'Profile',
+          icon: Icons.person_outline,
+          selectedIcon: Icons.person,
+          route: RoutePaths.profile,
+          branchIndex: 6,
+        ),
+        _ShellDestination(
+          label: 'Users',
+          icon: Icons.people_outline,
+          selectedIcon: Icons.people,
+          route: RoutePaths.users,
+          branchIndex: 7,
+        ),
+        _ShellDestination(
+          label: 'LOM Material Rate',
+          icon: Icons.tune_outlined,
+          selectedIcon: Icons.tune,
+          route: RoutePaths.lomCost,
+          branchIndex: 8,
+        ),
       ];
     }
 
@@ -82,12 +100,42 @@ class DesktopNavigationShell extends StatelessWidget {
     return [
       home,
       if (isMulti)
-        _ShellDestination(label: 'MWdg', icon: Icons.account_tree_outlined, selectedIcon: Icons.account_tree, route: RoutePaths.multiWindingsDesign(designId), branchIndex: 1)
+        _ShellDestination(
+          label: 'MWdg',
+          icon: Icons.account_tree_outlined,
+          selectedIcon: Icons.account_tree,
+          route: RoutePaths.multiWindingsDesign(designId),
+          branchIndex: 1,
+        )
       else
-        _ShellDestination(label: '2Wdg', icon: Icons.calculate_outlined, selectedIcon: Icons.calculate, route: RoutePaths.twoWindingsDesign(designId), branchIndex: 2),
-      _ShellDestination(label: 'Core', icon: Icons.donut_large_outlined, selectedIcon: Icons.donut_large, route: RoutePaths.coreDesign(designId), branchIndex: 3),
-      _ShellDestination(label: 'Fabrication', icon: Icons.precision_manufacturing_outlined, selectedIcon: Icons.precision_manufacturing, route: RoutePaths.fabricationDesign(designId), branchIndex: 4),
-      _ShellDestination(label: 'Files', icon: Icons.folder_open_outlined, selectedIcon: Icons.folder_open, route: RoutePaths.filesDesign(designId), branchIndex: 5),
+        _ShellDestination(
+          label: '2Wdg',
+          icon: Icons.calculate_outlined,
+          selectedIcon: Icons.calculate,
+          route: RoutePaths.twoWindingsDesign(designId),
+          branchIndex: 2,
+        ),
+      _ShellDestination(
+        label: 'Core',
+        icon: Icons.donut_large_outlined,
+        selectedIcon: Icons.donut_large,
+        route: RoutePaths.coreDesign(designId),
+        branchIndex: 3,
+      ),
+      _ShellDestination(
+        label: 'Fabrication',
+        icon: Icons.precision_manufacturing_outlined,
+        selectedIcon: Icons.precision_manufacturing,
+        route: RoutePaths.fabricationDesign(designId),
+        branchIndex: 4,
+      ),
+      _ShellDestination(
+        label: 'Files',
+        icon: Icons.folder_open_outlined,
+        selectedIcon: Icons.folder_open,
+        route: RoutePaths.filesDesign(designId),
+        branchIndex: 5,
+      ),
     ];
   }
 }
@@ -348,8 +396,9 @@ class _NavigationContext {
     final path = state.uri.path;
     final scope = switch (path) {
       RoutePaths.home => _NavigationScope.home,
-      RoutePaths.profile || RoutePaths.users || RoutePaths.lomCost =>
-        _NavigationScope.administration,
+      RoutePaths.profile ||
+      RoutePaths.users ||
+      RoutePaths.lomCost => _NavigationScope.administration,
       _ => _NavigationScope.design,
     };
     final designId = _designIdFromPath(path);
@@ -391,7 +440,9 @@ class _NavigationContext {
       RoutePaths.files,
     ]) {
       if (path.startsWith('$root/')) {
-        return Uri.decodeComponent(path.substring(root.length + 1).split('/').first);
+        return Uri.decodeComponent(
+          path.substring(root.length + 1).split('/').first,
+        );
       }
     }
     return 'new';
@@ -399,6 +450,28 @@ class _NavigationContext {
 }
 
 class DesignNavigationMemory {
+  static int _twoWindingDraftRevision = 0;
+  static int _multiWindingDraftRevision = 0;
+
+  static int get twoWindingDraftRevision => _twoWindingDraftRevision;
+  static int get multiWindingDraftRevision => _multiWindingDraftRevision;
+
+  // An explicit New Design action starts a new draft even when the shell
+  // still has the previous /2windings/new page mounted in its indexed stack.
+  static int beginNewTwoWindingDesign() {
+    _twoWindingDraftRevision++;
+    _summariesByDesignId.remove('new');
+    rememberContext('new', DesignType.twoWinding);
+    return _twoWindingDraftRevision;
+  }
+
+  static int beginNewMultiWindingDesign() {
+    _multiWindingDraftRevision++;
+    _summariesByDesignId.remove('new');
+    rememberContext('new', DesignType.multiWinding);
+    return _multiWindingDraftRevision;
+  }
+
   static final Map<String, DesignType> _typesByDesignId =
       <String, DesignType>{};
   static final Map<String, DesignSummary> _summariesByDesignId =
@@ -418,7 +491,7 @@ class DesignNavigationMemory {
     _typesByDesignId[designId] = designType;
   }
 
-  static void remember(_ShellDestination destination) {
+  static void _remember(_ShellDestination destination) {
     final route = destination.route;
     if (destination.branchIndex != 1 && destination.branchIndex != 2) {
       return;

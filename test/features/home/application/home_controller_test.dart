@@ -75,10 +75,50 @@ void main() {
     expect(searchCall.request.toJson(), <String, dynamic>{
       'attributeName': <String>['designId'],
       'attributeValue': '250k',
-      'sortAttribute': 'updatedAt',
-      'sortOrder': 'DESC',
+      'sortAttribute': 'designId',
+      'sortOrder': 'ASC',
+      'filters': <String, dynamic>{},
     });
   });
+
+  test(
+    'design type is filtered before each 20-row page is requested',
+    () async {
+      final repository = _FakeDesignRepository()
+        ..fetchResponse = const PaginatedResponse<DesignSummary>(
+          data: <DesignSummary>[],
+          total: 45,
+        );
+      final controller = HomeController(
+        designRepository: repository,
+        tokenStorage: _InMemoryTokenStorage(),
+      );
+
+      await controller.initialize();
+      await controller.changeDesignTypeFilter(DesignTypeFilter.multiWinding);
+
+      expect(controller.state.currentPage, 1);
+      expect(controller.state.totalPages, 3);
+      expect(repository.fetchCalls.last.size, 20);
+      expect(repository.fetchCalls.last.offset, 0);
+      expect(repository.fetchCalls.last.filters, <String, dynamic>{
+        'designType': <String>['multi'],
+      });
+
+      await controller.goToPage(2);
+      expect(repository.fetchCalls.last.offset, 1);
+      expect(repository.fetchCalls.last.filters, <String, dynamic>{
+        'designType': <String>['multi'],
+      });
+
+      await controller.changeDesignTypeFilter(DesignTypeFilter.twoWinding);
+      expect(controller.state.currentPage, 1);
+      expect(repository.fetchCalls.last.offset, 0);
+      expect(repository.fetchCalls.last.filters, <String, dynamic>{
+        'designType': <Object?>['two', null],
+      });
+    },
+  );
 
   test(
     'deleteSelectedDesigns deletes each selected record and reloads the list',

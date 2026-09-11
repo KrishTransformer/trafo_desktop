@@ -16,7 +16,7 @@ class HttpDesignRepository implements DesignRepository {
     return _apiClient.post<PaginatedResponse<DesignSummary>>(
       service: ApiService.common,
       path: '/entity/v2/design',
-      data: const <String, dynamic>{},
+      data: query.toRequestBody(),
       queryParameters: query.toQueryParameters(),
       decoder: (data) => PaginatedResponse<DesignSummary>.fromJson(
         Map<String, dynamic>.from(data as Map<Object?, Object?>),

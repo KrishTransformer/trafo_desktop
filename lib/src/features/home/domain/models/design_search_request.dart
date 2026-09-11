@@ -7,12 +7,14 @@ class DesignSearchRequest {
     required this.attributeValue,
     required this.sortAttribute,
     required this.sortOrder,
+    this.filters = const <String, dynamic>{},
   });
 
   final List<String> attributeName;
   final String attributeValue;
   final String sortAttribute;
   final String sortOrder;
+  final Map<String, dynamic> filters;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -20,6 +22,7 @@ class DesignSearchRequest {
       'attributeValue': attributeValue,
       'sortAttribute': sortAttribute,
       'sortOrder': sortOrder,
+      'filters': Map<String, dynamic>.from(filters),
     };
   }
 }

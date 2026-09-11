@@ -28,6 +28,7 @@ class HttpTwoWindingDesignRepository implements TwoWindingDesignRepository {
       path: '/entity/design',
       data: <String, dynamic>{
         'designId': designId,
+        'designType': 'two',
         'twoWindings': _sanitizeJsonString(design.toJson()),
       },
       decoder: (data) =>

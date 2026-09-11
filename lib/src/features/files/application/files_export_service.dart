@@ -36,10 +36,7 @@ enum FilesExportAction {
 }
 
 abstract interface class FilesDocumentOpener {
-  Future<void> openPdf({
-    required String fileName,
-    required Uint8List bytes,
-  });
+  Future<void> openPdf({required String fileName, required Uint8List bytes});
 
   Future<void> openUrl(Uri uri);
 }
@@ -180,24 +177,53 @@ class FilesExportService {
     return Uint8List.fromList(await document.save());
   }
 
-  pw.Widget _buildHeader({
-    required String title,
-    required FilesState state,
-  }) {
+  pw.Widget _buildHeader({required String title, required FilesState state}) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(
-          title,
-          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Container(
+              width: 72,
+              height: 42,
+              alignment: pw.Alignment.center,
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey500),
+              ),
+              child: pw.Text(
+                'LOGO\nPLACEHOLDER',
+                textAlign: pw.TextAlign.center,
+                style: const pw.TextStyle(
+                  fontSize: 7,
+                  color: PdfColors.grey700,
+                ),
+              ),
+            ),
+            pw.SizedBox(width: 12),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    title,
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text('Design Ref: ${_designReference(state)}'),
+                  if (state.customerName.trim().isNotEmpty)
+                    pw.Text('Customer: ${state.customerName.trim()}'),
+                  if (state.customerPlace.trim().isNotEmpty)
+                    pw.Text('Place: ${state.customerPlace.trim()}'),
+                  pw.Text('Generated: ${_timestampLabel()}'),
+                ],
+              ),
+            ),
+          ],
         ),
-        pw.SizedBox(height: 6),
-        pw.Text('Design Ref: ${_designReference(state)}'),
-        if (state.customerName.trim().isNotEmpty)
-          pw.Text('Customer: ${state.customerName.trim()}'),
-        if (state.customerPlace.trim().isNotEmpty)
-          pw.Text('Place: ${state.customerPlace.trim()}'),
-        pw.Text('Generated: ${_timestampLabel()}'),
         pw.Divider(),
       ],
     );
@@ -240,7 +266,10 @@ class FilesExportService {
           ['Tank Length', _display(fabrication?.readPath('tank.length'))],
           ['Tank Width', _display(fabrication?.readPath('tank.width'))],
           ['Tank Height', _display(fabrication?.readPath('tank.height'))],
-          ['Pressure Relief Valve', _display(fabrication?.readPath('restOfVariables.prv'))],
+          [
+            'Pressure Relief Valve',
+            _display(fabrication?.readPath('restOfVariables.prv')),
+          ],
           ['Rollers', _display(fabrication?.readPath('roller.roller'))],
           ['MOG', _display(fabrication?.readPath('mog.mog'))],
         ]),
@@ -269,16 +298,32 @@ class FilesExportService {
           ['Frequency', _display(twoWinding?.readPath('frequency'))],
           ['Core Loss', _display(twoWinding?.readPath('coreLoss'))],
           ['Load Loss', _display(twoWinding?.readPath('loadLoss'))],
-          ['Total Oil', _display(twoWinding?.readPath('tankAndOilFormulas.totalOil'))],
-          ['Tank + Accessories Weight', _display(twoWinding?.readPath('tankAndOilFormulas.weightOfTankAndAcc'))],
+          [
+            'Total Oil',
+            _display(twoWinding?.readPath('tankAndOilFormulas.totalOil')),
+          ],
+          [
+            'Tank + Accessories Weight',
+            _display(
+              twoWinding?.readPath('tankAndOilFormulas.weightOfTankAndAcc'),
+            ),
+          ],
         ]),
       ),
       pw.SizedBox(height: 12),
       _section(
         'Customer',
         _keyValueRows(<List<String>>[
-          ['Customer Name', state.customerName.trim().isEmpty ? '-' : state.customerName.trim()],
-          ['Customer Place', state.customerPlace.trim().isEmpty ? '-' : state.customerPlace.trim()],
+          [
+            'Customer Name',
+            state.customerName.trim().isEmpty ? '-' : state.customerName.trim(),
+          ],
+          [
+            'Customer Place',
+            state.customerPlace.trim().isEmpty
+                ? '-'
+                : state.customerPlace.trim(),
+          ],
         ]),
       ),
     ];
@@ -297,7 +342,10 @@ class FilesExportService {
         ]),
       ),
       pw.SizedBox(height: 12),
-      _section('Stacking Table', _stackTable(core?.bldStacks ?? const <CoreStackStep>[])),
+      _section(
+        'Stacking Table',
+        _stackTable(core?.bldStacks ?? const <CoreStackStep>[]),
+      ),
     ];
   }
 
@@ -315,7 +363,10 @@ class FilesExportService {
         ]),
       ),
       pw.SizedBox(height: 12),
-      _section('Blade Stack Rows', _stackTable(core?.bldStacks ?? const <CoreStackStep>[])),
+      _section(
+        'Blade Stack Rows',
+        _stackTable(core?.bldStacks ?? const <CoreStackStep>[]),
+      ),
     ];
   }
 

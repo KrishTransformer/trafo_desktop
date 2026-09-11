@@ -7,12 +7,14 @@ class DesignListQuery {
     required this.size,
     required this.sortAttribute,
     required this.sortOrder,
+    this.filters = const <String, dynamic>{},
   });
 
   final int offset;
   final int size;
   final String sortAttribute;
   final String sortOrder;
+  final Map<String, dynamic> filters;
 
   Map<String, dynamic> toQueryParameters() {
     return <String, dynamic>{
@@ -22,4 +24,6 @@ class DesignListQuery {
       'sortOrder': sortOrder,
     };
   }
+
+  Map<String, dynamic> toRequestBody() => Map<String, dynamic>.from(filters);
 }

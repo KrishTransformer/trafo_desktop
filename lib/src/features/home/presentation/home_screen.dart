@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../app/shell/desktop_navigation_shell.dart';
 import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
@@ -110,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   state: state,
                   onSearchChanged: homeController.setSearchQuery,
                   onSearchSubmitted: () => homeController.submitSearch(),
+                  onDesignTypeChanged: homeController.changeDesignTypeFilter,
                   onSortChanged: homeController.changeSortOption,
                   onDeleteSelected: () =>
                       _confirmDeleteSelected(homeController),
@@ -182,8 +184,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                     cta: 'Open 2 Winding',
                     onTap: () {
+                      final revision =
+                          DesignNavigationMemory.beginNewTwoWindingDesign();
                       Navigator.of(context).pop();
-                      this.context.go(RoutePaths.twoWindingsDesign('new'));
+                      this.context.go(
+                        '${RoutePaths.twoWindingsDesign('new')}?draft=$revision',
+                      );
                     },
                   ),
                 ),
@@ -202,8 +208,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                     cta: 'Open Multi Winding',
                     onTap: () {
+                      final revision =
+                          DesignNavigationMemory.beginNewMultiWindingDesign();
                       Navigator.of(context).pop();
-                      this.context.go(RoutePaths.multiWindingsDesign('new'));
+                      this.context.go(
+                        '${RoutePaths.multiWindingsDesign('new')}?draft=$revision',
+                      );
                     },
                   ),
                 ),
@@ -285,7 +295,8 @@ class _HomeHeader extends StatelessWidget {
               Text(
                 'Krish Transformer Design Software',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Libre Bodoni',
+                  fontWeight: FontWeight.w700,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -317,6 +328,8 @@ class _HomeHeader extends StatelessWidget {
             FilledButton.icon(
               onPressed: onCreateNewDesign,
               style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0F2E34),
+                foregroundColor: Colors.white,
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -390,6 +403,7 @@ class _SearchToolbar extends StatelessWidget {
     required this.state,
     required this.onSearchChanged,
     required this.onSearchSubmitted,
+    required this.onDesignTypeChanged,
     required this.onSortChanged,
     required this.onDeleteSelected,
   });
@@ -398,53 +412,124 @@ class _SearchToolbar extends StatelessWidget {
   final HomeState state;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onSearchSubmitted;
+  final ValueChanged<DesignTypeFilter> onDesignTypeChanged;
   final ValueChanged<DesignSortOption> onSortChanged;
   final VoidCallback onDeleteSelected;
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final compact = screenWidth < 640;
-    final searchWidth = compact ? screenWidth - 60 : 320.0;
-    final sortWidth = compact ? screenWidth - 60 : 200.0;
-
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: AppFormStyles.compactPanelPadding,
-        child: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            SizedBox(
-              width: searchWidth,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 960;
+            final veryCompact = constraints.maxWidth < 380;
+            final searchButtonWidth = veryCompact ? 42.0 : 96.0;
+            final searchWidth = compact
+                ? (constraints.maxWidth - searchButtonWidth - 8).clamp(
+                    120.0,
+                    260.0,
+                  )
+                : 300.0;
+            final searchGroup = Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: searchWidth,
+                      height: AppFormStyles.controlHeight,
+                      child: TextField(
+                        controller: searchController,
+                        onChanged: onSearchChanged,
+                        onSubmitted: (_) => onSearchSubmitted(),
+                        style: AppFormStyles.controlTextStyle(context),
+                        textAlignVertical: TextAlignVertical.center,
+                        decoration: AppFormStyles.decoration(
+                          context,
+                          labelText: 'Search by Des Ref.',
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            size: AppFormStyles.controlIconSize,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: searchButtonWidth,
+                      height: AppFormStyles.controlHeight,
+                      child: veryCompact
+                          ? IconButton.filled(
+                              tooltip: 'Search',
+                              onPressed: onSearchSubmitted,
+                              icon: const Icon(Icons.search, size: 17),
+                            )
+                          : FilledButton.icon(
+                              onPressed: onSearchSubmitted,
+                              icon: const Icon(Icons.search, size: 17),
+                              label: const Text('Search'),
+                            ),
+                    ),
+                  ],
+                ),
+                if (state.hasSelection)
+                  FilledButton.icon(
+                    onPressed: onDeleteSelected,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: Text('Delete (${state.selectionCount})'),
+                  ),
+              ],
+            );
+            final designFilter = SizedBox(
+              width: 180,
               height: AppFormStyles.controlHeight,
-              child: TextField(
-                controller: searchController,
-                onChanged: onSearchChanged,
-                onSubmitted: (_) => onSearchSubmitted(),
+              child: DropdownButtonFormField<DesignTypeFilter>(
+                key: ValueKey<DesignTypeFilter>(state.designTypeFilter),
+                initialValue: state.designTypeFilter,
+                isExpanded: true,
                 style: AppFormStyles.controlTextStyle(context),
-                textAlignVertical: TextAlignVertical.center,
                 decoration: AppFormStyles.decoration(
                   context,
-                  labelText: 'Search by Des Ref.',
+                  labelText: 'Design Type',
                   prefixIcon: const Icon(
-                    Icons.search,
+                    Icons.category_outlined,
                     size: AppFormStyles.controlIconSize,
                   ),
-                  suffixIcon: IconButton(
-                    tooltip: 'Search',
-                    onPressed: onSearchSubmitted,
-                    icon: const Icon(Icons.arrow_forward),
-                  ),
                 ),
+                items: DesignTypeFilter.values
+                    .map(
+                      (filter) => DropdownMenuItem<DesignTypeFilter>(
+                        value: filter,
+                        child: Text(filter.label),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (filter) {
+                  if (filter != null) {
+                    onDesignTypeChanged(filter);
+                  }
+                },
               ),
-            ),
-            SizedBox(
-              width: sortWidth,
+            );
+            final sortFilter = SizedBox(
+              width: 210,
               height: AppFormStyles.controlHeight,
               child: DropdownButtonFormField<DesignSortOption>(
+                key: ValueKey<DesignSortOption>(state.sortOption),
                 initialValue: state.sortOption,
                 isExpanded: true,
                 style: AppFormStyles.controlTextStyle(context),
@@ -460,10 +545,7 @@ class _SearchToolbar extends StatelessWidget {
                     .map(
                       (option) => DropdownMenuItem<DesignSortOption>(
                         value: option,
-                        child: Text(
-                          option.label,
-                          style: AppFormStyles.controlTextStyle(context),
-                        ),
+                        child: Text(option.label),
                       ),
                     )
                     .toList(growable: false),
@@ -473,22 +555,37 @@ class _SearchToolbar extends StatelessWidget {
                   }
                 },
               ),
-            ),
-            if (state.hasSelection)
-              FilledButton.icon(
-                onPressed: onDeleteSelected,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+            );
+
+            if (compact) {
+              return Wrap(
+                spacing: 14,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [searchGroup, designFilter, sortFilter],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: searchGroup,
                   ),
                 ),
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: Text('Delete Design (${state.selectionCount})'),
-              ),
-          ],
+                Expanded(flex: 2, child: Center(child: designFilter)),
+                Expanded(
+                  flex: 2,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: sortFilter,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

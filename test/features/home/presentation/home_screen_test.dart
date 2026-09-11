@@ -77,6 +77,19 @@ void main() {
     expect(find.byType(DataTable), findsOneWidget);
     expect(find.text('DES-0001'), findsOneWidget);
     expect(find.text('DES-0020'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Search'), findsOneWidget);
+    expect(find.text('All designs'), findsOneWidget);
+    final heading = tester.widget<Text>(
+      find.text('Krish Transformer Design Software'),
+    );
+    expect(heading.style?.fontFamily, 'Libre Bodoni');
+    final newDesignButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'New Design'),
+    );
+    expect(
+      newDesignButton.style?.backgroundColor?.resolve(<WidgetState>{}),
+      const Color(0xFF0F2E34),
+    );
   });
 
   testWidgets('new design dialog offers both two- and multi-winding flows', (

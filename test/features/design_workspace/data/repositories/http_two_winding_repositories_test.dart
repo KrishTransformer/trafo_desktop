@@ -8,30 +8,34 @@ import 'package:trafo_desktop/src/core/config/app_environment.dart';
 import 'package:trafo_desktop/src/core/network/api_client.dart';
 import 'package:trafo_desktop/src/core/network/api_service.dart';
 import 'package:trafo_desktop/src/core/storage/token_storage.dart';
+import 'package:trafo_desktop/src/features/design_workspace/application/two_winding_controller.dart';
 import 'package:trafo_desktop/src/features/design_workspace/data/repositories/http_two_winding_calculation_repository.dart';
 import 'package:trafo_desktop/src/features/design_workspace/data/repositories/http_two_winding_design_repository.dart';
 import 'package:trafo_desktop/src/features/design_workspace/domain/models/two_winding_design.dart';
 
 void main() {
   late _RecordingAdapter adapter;
+  late _RecordingAdapter coreAdapter;
   late HttpTwoWindingCalculationRepository calculationRepository;
   late HttpTwoWindingDesignRepository designRepository;
 
   setUp(() {
     adapter = _RecordingAdapter();
+    coreAdapter = _RecordingAdapter();
 
     final apiClient = ApiClient(
       environment: _testEnvironment,
       tokenStorage: _FakeTokenStorage(),
     );
     apiClient.clientFor(ApiService.common).httpClientAdapter = adapter;
+    apiClient.clientFor(ApiService.core).httpClientAdapter = coreAdapter;
 
     calculationRepository = HttpTwoWindingCalculationRepository(apiClient);
     designRepository = HttpTwoWindingDesignRepository(apiClient);
   });
 
   test('calculate posts to the documented two-winding endpoint', () async {
-    adapter.nextResponseJson = <String, dynamic>{
+    coreAdapter.nextResponseJson = <String, dynamic>{
       'kVA': '100',
       'core': <String, dynamic>{'coreMaterial': 'CRGO'},
     };
@@ -40,12 +44,64 @@ void main() {
       TwoWindingDesign.initial().copyWithPath('kVA', '100'),
     );
 
-    expect(adapter.lastOptions?.method, 'POST');
-    expect(adapter.lastOptions?.path, '/calculate/2windings/circular');
-    expect(adapter.lastDecodedBody?['kVA'], '100');
+    expect(coreAdapter.lastOptions?.method, 'POST');
+    expect(
+      coreAdapter.lastOptions?.uri.toString(),
+      'https://core.example.com/tf/api/design.trafointel.com/calculate/2windings/circular',
+    );
+    expect(coreAdapter.lastOptions?.headers['User-Calc'].toString(), 'true');
+    expect(coreAdapter.lastDecodedBody?['kVA'], '100');
+    expect(adapter.lastOptions, isNull);
     expect(response.stringAt('kVA'), '100');
     expect(response.stringAt('core.coreMaterial'), 'CRGO');
   });
+
+  test(
+    'entering only 200 kVA calculates on core and saves on common',
+    () async {
+      coreAdapter.nextResponseJson = TwoWindingDesign.initial()
+          .copyWithPath('kVA', 200)
+          .copyWithPath('core.coreDia', 250)
+          .toJson();
+      adapter.nextResponseJson = <String, dynamic>{'id': 'saved-200'};
+      final controller = TwoWindingController(
+        routeId: 'new',
+        calculationRepository: calculationRepository,
+        designRepository: designRepository,
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      controller.setField('kVA', '200');
+
+      expect(await controller.calculate(), isTrue);
+
+      final payload = coreAdapter.lastDecodedBody!;
+      expect(payload, containsPair('kVA', '200'));
+      expect(payload, containsPair('lowVoltage', 433));
+      expect(payload, containsPair('highVoltage', 11000));
+      expect(payload, containsPair('frequency', '50'));
+      expect(payload, containsPair('fluxDensity', 1.7333));
+      expect(payload, containsPair('vectorGroup', 'Dyn11'));
+      expect(payload, containsPair('lvWindingType', 'HELICAL'));
+      expect(payload, containsPair('hvWindingType', 'HELICAL'));
+      expect(payload, containsPair('lvCurrentDensity', '4.24'));
+      expect(payload, containsPair('hvCurrentDensity', '4.24'));
+      expect(payload, containsPair('buildFactor', 1.3));
+      expect(payload, containsPair('topOilTemp', '50'));
+      expect(payload['core']['coreMaterial'], 'NipM4');
+      expect(payload['core']['coreType'], 'PRIME');
+      expect(payload['core']['coreDia'], isNull);
+      expect(payload['innerWindings']['turnsPerPhase'], isNull);
+      expect(payload['outerWindings']['turnsPerPhase'], isNull);
+      expect(adapter.lastOptions?.uri.host, 'common.example.com');
+      expect(adapter.lastOptions?.method, 'PUT');
+      expect(adapter.lastOptions?.path, '/entity/design');
+      expect(adapter.lastDecodedBody?['designType'], 'two');
+      expect(controller.state.design.readPath('core.coreDia'), 250);
+      expect(controller.state.metadata.entityId, 'saved-200');
+      expect(controller.state.errorMessage, isEmpty);
+    },
+  );
 
   test(
     'createDesign stringifies and sanitizes the persisted two-winding payload',
@@ -69,6 +125,7 @@ void main() {
       expect(adapter.lastOptions?.method, 'PUT');
       expect(adapter.lastOptions?.path, '/entity/design');
       expect(requestBody['designId'], '100k-12345');
+      expect(requestBody['designType'], 'two');
       expect(requestBody['twoWindings'], isA<String>());
 
       final persistedJson =
@@ -90,7 +147,7 @@ final AppEnvironment _testEnvironment = AppEnvironment(
   flavor: AppFlavor.development,
   baseUrls: ServiceBaseUrls(
     common: Uri(scheme: 'https', host: 'common.example.com'),
-    core: Uri(scheme: 'https', host: 'core.example.com'),
+    core: Uri.parse('https://core.example.com/tf/api/design.trafointel.com'),
     cad: Uri(scheme: 'https', host: 'cad.example.com'),
     multiWinding: Uri(scheme: 'https', host: 'multi.example.com'),
     storage: Uri(scheme: 'https', host: 'storage.example.com'),

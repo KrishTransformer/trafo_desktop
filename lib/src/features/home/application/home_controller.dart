@@ -64,6 +64,14 @@ class HomeController extends ChangeNotifier {
     await _loadDesigns(page: 1, sortOption: option);
   }
 
+  Future<void> changeDesignTypeFilter(DesignTypeFilter filter) async {
+    if (filter == _state.designTypeFilter) {
+      return;
+    }
+
+    await _loadDesigns(page: 1, designTypeFilter: filter);
+  }
+
   Future<void> goToPage(int page) async {
     final totalPages = _state.totalPages;
     if (totalPages == 0) {
@@ -163,8 +171,10 @@ class HomeController extends ChangeNotifier {
   Future<void> _loadDesigns({
     required int page,
     DesignSortOption? sortOption,
+    DesignTypeFilter? designTypeFilter,
   }) async {
     final nextSortOption = sortOption ?? _state.sortOption;
+    final nextDesignTypeFilter = designTypeFilter ?? _state.designTypeFilter;
     final nextPage = page < 1 ? 1 : page;
 
     _setState(
@@ -173,6 +183,7 @@ class HomeController extends ChangeNotifier {
         isInitialized: true,
         currentPage: nextPage,
         sortOption: nextSortOption,
+        designTypeFilter: nextDesignTypeFilter,
         errorMessage: '',
       ),
     );
@@ -183,6 +194,7 @@ class HomeController extends ChangeNotifier {
         size: _state.pageSize,
         sortAttribute: nextSortOption.sortAttribute,
         sortOrder: nextSortOption.sortOrder,
+        filters: _filtersFor(nextDesignTypeFilter),
       );
 
       final response = _state.searchQuery.trim().isEmpty
@@ -192,8 +204,9 @@ class HomeController extends ChangeNotifier {
               request: DesignSearchRequest(
                 attributeName: const <String>['designId'],
                 attributeValue: _state.searchQuery.trim(),
-                sortAttribute: 'updatedAt',
-                sortOrder: 'DESC',
+                sortAttribute: nextSortOption.sortAttribute,
+                sortOrder: nextSortOption.sortOrder,
+                filters: _filtersFor(nextDesignTypeFilter),
               ),
             );
 
@@ -205,7 +218,11 @@ class HomeController extends ChangeNotifier {
           : (response.total / _state.pageSize).ceil();
 
       if (totalPages > 0 && nextPage > totalPages) {
-        await _loadDesigns(page: totalPages, sortOption: nextSortOption);
+        await _loadDesigns(
+          page: totalPages,
+          sortOption: nextSortOption,
+          designTypeFilter: nextDesignTypeFilter,
+        );
         return;
       }
 
@@ -239,6 +256,18 @@ class HomeController extends ChangeNotifier {
         ),
       );
     }
+  }
+
+  Map<String, dynamic> _filtersFor(DesignTypeFilter filter) {
+    return switch (filter) {
+      DesignTypeFilter.all => const <String, dynamic>{},
+      DesignTypeFilter.twoWinding => <String, dynamic>{
+        'designType': <Object?>['two', null],
+      },
+      DesignTypeFilter.multiWinding => <String, dynamic>{
+        'designType': <String>['multi'],
+      },
+    };
   }
 
   Future<void> _loadProfile() async {

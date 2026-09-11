@@ -15,6 +15,16 @@ enum DesignSortOption {
   final String label;
 }
 
+enum DesignTypeFilter {
+  all('All designs'),
+  twoWinding('2Wdg'),
+  multiWinding('MWdg');
+
+  const DesignTypeFilter(this.label);
+
+  final String label;
+}
+
 @immutable
 class HomeState {
   const HomeState({
@@ -26,6 +36,7 @@ class HomeState {
     required this.pageSize,
     required this.totalEntries,
     required this.sortOption,
+    required this.designTypeFilter,
     required this.rows,
     required this.selectedDesignIds,
     required this.profileName,
@@ -42,6 +53,7 @@ class HomeState {
       pageSize = 20,
       totalEntries = 0,
       sortOption = DesignSortOption.updatedAtDesc,
+      designTypeFilter = DesignTypeFilter.all,
       rows = const <DesignTableRow>[],
       selectedDesignIds = const <String>{},
       profileName = 'User',
@@ -56,6 +68,7 @@ class HomeState {
   final int pageSize;
   final int totalEntries;
   final DesignSortOption sortOption;
+  final DesignTypeFilter designTypeFilter;
   final List<DesignTableRow> rows;
   final Set<String> selectedDesignIds;
   final String profileName;
@@ -84,6 +97,7 @@ class HomeState {
     int? pageSize,
     int? totalEntries,
     DesignSortOption? sortOption,
+    DesignTypeFilter? designTypeFilter,
     List<DesignTableRow>? rows,
     Set<String>? selectedDesignIds,
     String? profileName,
@@ -99,6 +113,7 @@ class HomeState {
       pageSize: pageSize ?? this.pageSize,
       totalEntries: totalEntries ?? this.totalEntries,
       sortOption: sortOption ?? this.sortOption,
+      designTypeFilter: designTypeFilter ?? this.designTypeFilter,
       rows: rows ?? this.rows,
       selectedDesignIds: selectedDesignIds ?? this.selectedDesignIds,
       profileName: profileName ?? this.profileName,

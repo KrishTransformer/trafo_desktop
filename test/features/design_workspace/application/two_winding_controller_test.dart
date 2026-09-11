@@ -9,6 +9,40 @@ import 'package:trafo_desktop/src/features/design_workspace/domain/repositories/
 import 'package:trafo_desktop/src/features/home/domain/models/design_summary.dart';
 
 void main() {
+  test(
+    'new design discards saved data and uses the tf-web initial state',
+    () async {
+      final controller = TwoWindingController(
+        routeId: 'new',
+        calculationRepository: _FakeCalculationRepository(),
+        designRepository: _FakeDesignRepository(),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize(
+        initialSummary: DesignSummary(
+          id: 'old-design',
+          designId: '500k-12345',
+          createdAt: '2026-09-01',
+          twoWindings: TwoWindingDesign.initial()
+              .copyWithPath('kVA', '500')
+              .copyWithPath('tank.tankLength', '1200')
+              .copyWithPath('lockedAttributes.coreLock.coreDia', true)
+              .copyWithPath('comments.coreToLvClrComment', 'Old note')
+              .toJson(),
+        ),
+      );
+      expect(
+        controller.state.design.toJson(),
+        TwoWindingDesign.initial().toJson(),
+      );
+      expect(controller.state.metadata.entityId, isEmpty);
+      expect(controller.state.metadata.designId, isEmpty);
+      expect(controller.state.metadata.createdAt, isEmpty);
+      expect(controller.state.expandedMoreInfo, isFalse);
+      expect(controller.state.activeComment, isEmpty);
+    },
+  );
+
   test('initialize loads an existing persisted two-winding payload', () async {
     final controller = TwoWindingController(
       routeId: 'entity-1',
@@ -91,6 +125,8 @@ void main() {
       controller.setField('innerWindings.turnsPerPhase', '12');
       controller.toggleLock('innerWindings.turnsPerPhase');
       controller.setField('core.coreDia', '220');
+      controller.setField('frequency', null);
+      controller.setField('topOilTemp', null);
 
       final success = await controller.calculate();
 
@@ -111,6 +147,8 @@ void main() {
         calculationRepository.lastRequest?.readPath('core.coreDia'),
         isNull,
       );
+      expect(calculationRepository.lastRequest?.readPath('frequency'), 50);
+      expect(calculationRepository.lastRequest?.readPath('topOilTemp'), 50);
       expect(designRepository.createdDesignId, startsWith('100k-'));
       expect(
         designRepository.createdDesign?.stringAt('designId'),
