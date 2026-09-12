@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../home/domain/models/design_summary.dart';
 import '../domain/models/multi_winding_design.dart';
 import '../domain/repositories/multi_winding_repositories.dart';
@@ -133,18 +134,37 @@ class MultiWindingController extends ChangeNotifier {
         state.design,
         request,
       ).copyWithPath('designId', generatedId);
-      final entityId = await _designRepository.createDesign(
-        designId: generatedId,
-        design: calculated,
-      );
+
       _setState(
         _state.copyWith(
-          isCalculating: false,
           design: calculated,
-          designId: entityId.isEmpty ? generatedId : generatedId,
+          designId: generatedId,
         ),
       );
+
+      try {
+        await _designRepository.createDesign(
+          designId: generatedId,
+          design: calculated,
+        );
+        _setState(_state.copyWith(isCalculating: false));
+      } on ApiException catch (exception) {
+        _setState(
+          _state.copyWith(
+            isCalculating: false,
+            errorMessage:
+                'Calculated values are shown, but saving the design failed. '
+                '${exception.message}',
+          ),
+        );
+        return false;
+      }
       return true;
+    } on ApiException catch (exception) {
+      _setState(
+        _state.copyWith(isCalculating: false, errorMessage: exception.message),
+      );
+      return false;
     } catch (_) {
       _setState(
         _state.copyWith(

@@ -8,6 +8,7 @@ import '../features/authentication/application/auth_controller.dart';
 import '../features/home/application/home_controller.dart';
 import 'app_scope.dart';
 import 'app_theme.dart';
+import 'app_theme_controller.dart';
 
 class TrafoDesktopApp extends StatelessWidget {
   const TrafoDesktopApp({
@@ -37,11 +38,20 @@ class TrafoDesktopApp extends StatelessWidget {
         authController: authController,
         homeController: homeController,
       ),
-      child: MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        title: 'Trafo Desktop',
-        theme: buildAppTheme(),
-        routerConfig: router,
+      child: AnimatedBuilder(
+        animation: appThemeController,
+        builder: (context, _) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            title: 'Trafo Desktop',
+            theme: buildAppTheme(),
+            darkTheme: buildAppTheme(brightness: Brightness.dark),
+            themeMode: appThemeController.isDarkMode
+                ? ThemeMode.dark
+                : ThemeMode.light,
+            routerConfig: router,
+          );
+        },
       ),
     );
   }

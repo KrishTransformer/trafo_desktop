@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/app_scope.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../app/shell/desktop_navigation_shell.dart';
+import '../../../app/app_theme_controller.dart';
 import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
@@ -85,7 +86,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return AnimatedBuilder(
-      animation: Listenable.merge(<Listenable>[homeController, authController]),
+      animation: Listenable.merge(<Listenable>[
+        homeController,
+        authController,
+        appThemeController,
+      ]),
       builder: (context, _) {
         final state = homeController.state;
         final isSigningOut =
@@ -101,8 +106,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 _HomeHeader(
                   profileName: state.profileName,
                   profileEmail: state.profileEmail,
+                  isDarkMode: appThemeController.isDarkMode,
                   onCreateNewDesign: () => _showDesignTypeDialog(context),
                   onOpenRates: () => context.go(RoutePaths.lomCost),
+                  onToggleDarkMode: appThemeController.toggleDarkMode,
                   onLogout: () => _handleLogout(authController),
                 ),
                 const SizedBox(height: 12),
@@ -265,15 +272,19 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.profileName,
     required this.profileEmail,
+    required this.isDarkMode,
     required this.onCreateNewDesign,
     required this.onOpenRates,
+    required this.onToggleDarkMode,
     required this.onLogout,
   });
 
   final String profileName;
   final String profileEmail;
+  final bool isDarkMode;
   final VoidCallback onCreateNewDesign;
   final VoidCallback onOpenRates;
+  final VoidCallback onToggleDarkMode;
   final VoidCallback onLogout;
 
   @override
@@ -315,12 +326,36 @@ class _HomeHeader extends StatelessWidget {
               onSelected: (value) {
                 if (value == _SettingsAction.updateRates) {
                   onOpenRates();
+                  return;
+                }
+
+                if (value == _SettingsAction.toggleDarkMode) {
+                  onToggleDarkMode();
                 }
               },
-              itemBuilder: (context) => const [
+              itemBuilder: (context) => [
                 PopupMenuItem<_SettingsAction>(
+                  value: _SettingsAction.toggleDarkMode,
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      isDarkMode
+                          ? Icons.light_mode_outlined
+                          : Icons.dark_mode_outlined,
+                    ),
+                    title: Text(isDarkMode ? 'Turn off dark mode' : 'Dark mode'),
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<_SettingsAction>(
                   value: _SettingsAction.updateRates,
-                  child: Text('Update Rates'),
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.tune_outlined),
+                    title: Text('Update Rates'),
+                  ),
                 ),
               ],
               child: const _HeaderIconButton(icon: Icons.settings_outlined),
@@ -328,8 +363,6 @@ class _HomeHeader extends StatelessWidget {
             FilledButton.icon(
               onPressed: onCreateNewDesign,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF0F2E34),
-                foregroundColor: Colors.white,
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -988,6 +1021,6 @@ class _HeaderIconButton extends StatelessWidget {
   }
 }
 
-enum _SettingsAction { updateRates }
+enum _SettingsAction { toggleDarkMode, updateRates }
 
 enum _ProfileAction { logout }

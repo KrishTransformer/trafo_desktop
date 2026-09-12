@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:trafo_desktop/src/core/network/api_exception.dart';
 import 'package:trafo_desktop/src/features/multi_winding/application/multi_winding_controller.dart';
 import 'package:trafo_desktop/src/features/multi_winding/domain/models/multi_winding_design.dart';
 import 'package:trafo_desktop/src/features/multi_winding/domain/repositories/multi_winding_repositories.dart';
@@ -180,6 +181,26 @@ void main() {
       );
     },
   );
+
+  test('calculated values are shown even when saving fails', () async {
+    final controller = MultiWindingController(
+      calculationRepository: _ResponseCalculationRepository(),
+      designRepository: _FailingDesignRepository(),
+    );
+    controller.update('kVA', '1000');
+
+    final succeeded = await controller.calculate();
+
+    expect(succeeded, isFalse);
+    expect(controller.state.isCalculating, isFalse);
+    expect(controller.state.design.textAt('coilDimensions.lvid'), '620');
+    expect(controller.state.design.textAt('performance.noLoadLoss'), '750');
+    expect(controller.state.design.textAt('cost.capitalCost'), '125000');
+    expect(
+      controller.state.errorMessage,
+      contains('Calculated values are shown'),
+    );
+  });
 }
 
 MultiWindingController _controller() => MultiWindingController(
@@ -207,6 +228,19 @@ class _DesignRepository implements MultiWindingDesignRepository {
     this.designId = designId;
     this.design = design;
     return 'entity-1';
+  }
+}
+
+class _FailingDesignRepository implements MultiWindingDesignRepository {
+  @override
+  Future<String> createDesign({
+    required String designId,
+    required MultiWindingDesign design,
+  }) {
+    throw const ApiException(
+      type: ApiExceptionType.server,
+      message: 'Save failed.',
+    );
   }
 }
 

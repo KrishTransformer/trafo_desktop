@@ -1604,6 +1604,7 @@ class _MatrixField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _SyncedTextField(
+    key: ValueKey(path),
     value: value,
     path: path,
     onChanged: onChanged,
@@ -1676,6 +1677,7 @@ class _DensityMaterialCell extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       _SyncedTextField(
+        key: ValueKey(densityPath),
         value: density,
         path: densityPath,
         onChanged: (value) => controller.update(densityPath, value),
@@ -2061,6 +2063,7 @@ class _Field extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final field = _SyncedTextField(
+      key: ValueKey(path),
       value: value,
       path: path,
       label: label,
@@ -2105,26 +2108,37 @@ class _ChoiceField extends StatelessWidget {
     final selected = values.contains(value) ? value : values.first;
     return SizedBox(
       width: fluid ? double.infinity : width,
-      child: DropdownButtonFormField<String>(
-        key: ValueKey('$path:$selected'),
-        initialValue: selected,
-        isExpanded: true,
-        style: const TextStyle(color: _text, fontSize: 12),
-        decoration: _inputDecoration(labelText: label),
-        items: [
-          for (final option in values)
-            DropdownMenuItem(
-              value: option,
-              child: Text(
-                displayValues?[option] ?? option,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _multiWindingFieldLabel(label),
+          const SizedBox(height: 3),
+          SizedBox(
+            height: _multiWindingControlHeight,
+            child: DropdownButtonFormField<String>(
+              key: ValueKey('$path:$selected'),
+              initialValue: selected,
+              isExpanded: true,
+              style: _multiWindingControlTextStyle(),
+              decoration: _inputDecoration(),
+              items: [
+                for (final option in values)
+                  DropdownMenuItem(
+                    value: option,
+                    child: Text(
+                      displayValues?[option] ?? option,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (selectedValue) {
+                if (selectedValue != null) onChanged(selectedValue);
+              },
             ),
+          ),
         ],
-        onChanged: (selectedValue) {
-          if (selectedValue != null) onChanged(selectedValue);
-        },
       ),
     );
   }
@@ -2132,6 +2146,7 @@ class _ChoiceField extends StatelessWidget {
 
 class _SyncedTextField extends StatefulWidget {
   const _SyncedTextField({
+    super.key,
     required this.value,
     required this.path,
     required this.onChanged,
@@ -2165,10 +2180,17 @@ class _SyncedTextFieldState extends State<_SyncedTextField> {
   @override
   void didUpdateWidget(covariant _SyncedTextField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.value == _controller.text) return;
+    if (widget.path == oldWidget.path && widget.value == _controller.text) {
+      return;
+    }
+    final offset = widget.path == oldWidget.path
+        ? _controller.selection.baseOffset
+              .clamp(0, widget.value.length)
+              .toInt()
+        : widget.value.length;
     _controller.value = TextEditingValue(
       text: widget.value,
-      selection: TextSelection.collapsed(offset: widget.value.length),
+      selection: TextSelection.collapsed(offset: offset),
     );
   }
 
@@ -2179,43 +2201,94 @@ class _SyncedTextFieldState extends State<_SyncedTextField> {
   }
 
   @override
-  Widget build(BuildContext context) => TextFormField(
-    key: ValueKey(widget.path),
-    controller: _controller,
-    readOnly: widget.readOnly,
-    onChanged: widget.onChanged,
-    style: const TextStyle(color: _text, fontSize: 12, height: 1.15),
-    decoration: _inputDecoration(
-      labelText: widget.label,
-      fillColor: widget.fillColor,
-      suffixIcon: widget.suffixIcon,
+  Widget build(BuildContext context) {
+    final field = SizedBox(
+      height: _multiWindingControlHeight,
+      child: TextFormField(
+        key: ValueKey(widget.path),
+        controller: _controller,
+        readOnly: widget.readOnly,
+        onChanged: widget.onChanged,
+        textAlignVertical: TextAlignVertical.center,
+        style: _multiWindingControlTextStyle(),
+        decoration: _inputDecoration(
+          fillColor: widget.fillColor,
+          suffixIcon: widget.suffixIcon,
+        ),
+      ),
+    );
+
+    if (widget.label == null || widget.label!.isEmpty) {
+      return field;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _multiWindingFieldLabel(widget.label!),
+        const SizedBox(height: 3),
+        field,
+      ],
+    );
+  }
+}
+
+const _multiWindingControlHeight = 30.0;
+
+TextStyle _multiWindingControlTextStyle() {
+  return const TextStyle(
+    color: _text,
+    fontSize: 12,
+    height: 1.0,
+    fontWeight: FontWeight.w400,
+  );
+}
+
+Widget _multiWindingFieldLabel(String label) {
+  if (label.isEmpty) {
+    return const SizedBox.shrink();
+  }
+
+  return Text(
+    label,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(
+      color: _mutedText,
+      fontSize: 12,
+      height: 1.1,
+      fontWeight: FontWeight.w500,
     ),
   );
 }
 
 InputDecoration _inputDecoration({
-  String? labelText,
   Color fillColor = _inputFill,
   Widget? suffixIcon,
 }) => InputDecoration(
-  labelText: labelText,
-  labelStyle: const TextStyle(color: _mutedText, fontSize: 11),
   filled: true,
   fillColor: fillColor,
-  isDense: true,
-  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  isDense: false,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 5),
+  constraints: const BoxConstraints.tightFor(
+    height: _multiWindingControlHeight,
+  ),
   suffixIcon: suffixIcon,
-  suffixIconConstraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+  suffixIconConstraints: const BoxConstraints(
+    minWidth: 28,
+    minHeight: _multiWindingControlHeight,
+  ),
   enabledBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(7),
+    borderRadius: BorderRadius.circular(5),
     borderSide: const BorderSide(color: _strongBorder),
   ),
   focusedBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(7),
+    borderRadius: BorderRadius.circular(5),
     borderSide: const BorderSide(color: _blue, width: 1.5),
   ),
   disabledBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(7),
+    borderRadius: BorderRadius.circular(5),
     borderSide: const BorderSide(color: _border),
   ),
 );

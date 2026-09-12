@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/shell/desktop_navigation_shell.dart';
+import '../../../core/presentation/app_decorations.dart';
 import '../../../core/presentation/app_form_styles.dart';
+import '../../../core/presentation/app_radii.dart';
+import '../../../core/presentation/app_spacing.dart';
+import '../../../core/presentation/app_text_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../home/domain/models/design_summary.dart';
@@ -375,7 +379,7 @@ class _WorkspaceView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _WorkspaceHeader(controller: controller, state: state),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -383,7 +387,7 @@ class _WorkspaceView extends StatelessWidget {
               final document = Column(
                 children: [
                   _CustomerCard(controller: controller, state: state),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   _DetailsCard(
                     controller: controller,
                     state: state,
@@ -408,13 +412,17 @@ class _WorkspaceView extends StatelessWidget {
               );
               final content = stacked
                   ? Column(
-                      children: [document, const SizedBox(height: 16), actions],
+                      children: [
+                        document,
+                        const SizedBox(height: AppSpacing.lg),
+                        actions,
+                      ],
                     )
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(width: 1020, child: document),
-                        const SizedBox(width: 20),
+                        const SizedBox(width: AppSpacing.xl),
                         SizedBox(width: 320, child: actions),
                       ],
                     );
@@ -454,7 +462,7 @@ class _WorkspaceHeader extends StatelessWidget {
       alignment: Alignment.centerRight,
       child: Wrap(
         spacing: 12,
-        runSpacing: 10,
+        runSpacing: AppSpacing.sm,
         alignment: WrapAlignment.end,
         children: [
           FilledButton.icon(
@@ -481,7 +489,6 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -491,9 +498,7 @@ class _CustomerCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Customer Details',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: AppTextStyles.pageTitle(context),
                 ),
               ),
               IconButton(
@@ -508,7 +513,7 @@ class _CustomerCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 560;
@@ -525,11 +530,17 @@ class _CustomerCard extends StatelessWidget {
                 onChanged: controller.updateCustomerPlace,
               );
               return stacked
-                  ? Column(children: [name, const SizedBox(height: 12), place])
+                  ? Column(
+                      children: [
+                        name,
+                        const SizedBox(height: AppSpacing.md),
+                        place,
+                      ],
+                    )
                   : Row(
                       children: [
                         Expanded(child: name),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: AppSpacing.lg),
                         Expanded(child: place),
                       ],
                     );
@@ -562,11 +573,9 @@ class _CustomerField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          style: theme.textTheme.labelLarge,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xs),
         if (isEditing)
           SizedBox(
             height: AppFormStyles.controlHeight,
@@ -582,11 +591,7 @@ class _CustomerField extends StatelessWidget {
             height: AppFormStyles.controlHeight,
             alignment: Alignment.centerLeft,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7F9FC),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
+            decoration: AppDecorations.subtlePanel(context),
             child: Text(
               value.isEmpty ? '-' : value,
               style: AppFormStyles.controlTextStyle(context),
@@ -637,7 +642,6 @@ class _DetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -647,9 +651,7 @@ class _DetailsCard extends StatelessWidget {
               final stacked = constraints.maxWidth < 520;
               final title = Text(
                 'Details',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: AppTextStyles.pageTitle(context),
               );
               final search = SizedBox(
                 width: stacked ? double.infinity : 280,
@@ -671,7 +673,11 @@ class _DetailsCard extends StatelessWidget {
               return stacked
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [title, const SizedBox(height: 12), search],
+                      children: [
+                        title,
+                        const SizedBox(height: AppSpacing.md),
+                        search,
+                      ],
                     )
                   : Row(
                       children: [
@@ -681,7 +687,7 @@ class _DetailsCard extends StatelessWidget {
                     );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           _AccordionSection(
             title: 'LOM',
             isExpanded: state.isLomExpanded,
@@ -690,16 +696,14 @@ class _DetailsCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Wrap(
-                  spacing: 12,
-                  runSpacing: 10,
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.sm,
                   alignment: WrapAlignment.spaceBetween,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       '${state.displayRows.length} items',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                      style: AppTextStyles.muted(context),
                     ),
                     OutlinedButton.icon(
                       onPressed: onToggleAddItemForm,
@@ -725,7 +729,7 @@ class _DetailsCard extends StatelessWidget {
                     onSubmit: onAddCustomItem,
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 _LomTable(
                   state: state,
                   filteredRows: filteredRows,
@@ -735,23 +739,17 @@ class _DetailsCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           _AccordionSection(
             title: 'CCC',
             isExpanded: state.isCccExpanded,
             onToggle: () => controller.toggleAccordion('CCC'),
             child: Container(
               padding: AppFormStyles.panelPadding,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F9FC),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-              ),
+              decoration: AppDecorations.subtlePanel(context),
               child: Text(
                 'Comprehensive cost calculations will appear here after the CCC workflow is migrated.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                style: AppTextStyles.muted(context),
               ),
             ),
           ),
@@ -776,33 +774,31 @@ class _AccordionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+      decoration: AppDecorations.panel(context),
       child: Column(
         children: [
           InkWell(
             onTap: onToggle,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadii.md),
+            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 11,
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppTextStyles.sectionTitle(context),
                     ),
                   ),
                   Icon(
                     isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -897,12 +893,12 @@ class _AddCustomItemForm extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F9FC),
-        borderRadius: BorderRadius.circular(6),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: AppRadii.compact,
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: AppFormStyles.panelPadding,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 620;
@@ -911,19 +907,19 @@ class _AddCustomItemForm extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       description,
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       specification,
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       unit,
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       Row(
                         children: [
                           Expanded(child: quantity),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(child: rate),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       Align(alignment: Alignment.centerRight, child: submit),
                     ],
                   )
@@ -932,19 +928,19 @@ class _AddCustomItemForm extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(flex: 2, child: description),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(flex: 2, child: specification),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(child: unit),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       Row(
                         children: [
                           Expanded(child: quantity),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(child: rate),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppSpacing.md),
                           submit,
                         ],
                       ),
@@ -981,11 +977,7 @@ class _LomTable extends StatelessWidget {
     final rows = filteredRows;
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+      decoration: AppDecorations.table(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1038,9 +1030,9 @@ class _LomTable extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F9FC),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(6),
+                bottom: Radius.circular(AppRadii.md),
               ),
               border: Border(
                 top: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -1075,20 +1067,50 @@ class _TableHeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(color: Color(0xFFF4F6F8)),
+    return DecoratedBox(
+      decoration: AppDecorations.tableHeader(context),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
-            _TableCell(width: 54, child: Text('S.No')),
-            _TableCell(width: 180, child: Text('Description')),
-            _TableCell(width: 210, child: Text('Specification')),
-            _TableCell(width: 90, child: Text('Unit')),
-            _TableCell(width: 100, child: Text('Quantity')),
-            _TableCell(width: 120, child: Text('Rate')),
-            _TableCell(width: 120, child: Text('Cost')),
-            _TableCell(width: 60, child: SizedBox.shrink()),
+            _TableCell(
+              width: 54,
+              child: Text('S.No', style: AppTextStyles.tableHeader(context)),
+            ),
+            _TableCell(
+              width: 180,
+              child: Text(
+                'Description',
+                style: AppTextStyles.tableHeader(context),
+              ),
+            ),
+            _TableCell(
+              width: 210,
+              child: Text(
+                'Specification',
+                style: AppTextStyles.tableHeader(context),
+              ),
+            ),
+            _TableCell(
+              width: 90,
+              child: Text('Unit', style: AppTextStyles.tableHeader(context)),
+            ),
+            _TableCell(
+              width: 100,
+              child: Text(
+                'Quantity',
+                style: AppTextStyles.tableHeader(context),
+              ),
+            ),
+            _TableCell(
+              width: 120,
+              child: Text('Rate', style: AppTextStyles.tableHeader(context)),
+            ),
+            _TableCell(
+              width: 120,
+              child: Text('Cost', style: AppTextStyles.tableHeader(context)),
+            ),
+            const _TableCell(width: 60, child: SizedBox.shrink()),
           ],
         ),
       ),
@@ -1196,25 +1218,20 @@ class _ActionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Document Actions',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.pageTitle(context),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             '${state.materials.length} material rates loaded',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: AppTextStyles.muted(context),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           for (final action in _actions) ...[
             OutlinedButton.icon(
               onPressed: () => onExportPressed(context, action),
@@ -1224,11 +1241,11 @@ class _ActionPanel extends StatelessWidget {
                 child: Text(action),
               ),
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
+                minimumSize: const Size.fromHeight(38),
                 alignment: Alignment.centerLeft,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
           ],
         ],
       ),
@@ -1244,18 +1261,7 @@ class _SurfaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(15, 23, 42, 0.05),
-            blurRadius: 20,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
+      decoration: AppDecorations.elevatedPanel(context),
       child: Padding(padding: AppFormStyles.panelPadding, child: child),
     );
   }
@@ -1273,11 +1279,7 @@ class _FilesEmptyState extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
+          decoration: AppDecorations.elevatedPanel(context),
           child: Padding(
             padding: const EdgeInsets.all(28),
             child: Column(

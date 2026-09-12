@@ -5,7 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../app/app_scope.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../app/shell/desktop_navigation_shell.dart';
+import '../../../core/presentation/app_controls.dart';
+import '../../../core/presentation/app_decorations.dart';
 import '../../../core/presentation/app_form_styles.dart';
+import '../../../core/presentation/app_radii.dart';
+import '../../../core/presentation/app_spacing.dart';
+import '../../../core/presentation/app_text_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../home/domain/models/design_summary.dart';
@@ -143,12 +148,12 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
               child: LoadingOverlay(
                 isLoading: state.isBusy,
                 child: ColoredBox(
-                  color: _twoWindingPageBackground,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1680),
                       child: Padding(
-                        padding: const EdgeInsets.all(18),
+                        padding: AppSpacing.pagePadding,
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             final stacked = constraints.maxWidth < 1100;
@@ -158,7 +163,7 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                                   state: state,
                                   controller: controller,
                                 ),
-                                const SizedBox(height: 5),
+                                const SizedBox(height: AppSpacing.sm),
                                 _WorkspaceHeader(
                                   canOpenCore: canOpenCore,
                                   onReset: controller.reset,
@@ -173,7 +178,7 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                                   onCalculate: controller.calculate,
                                   isCalculating: state.isCalculating,
                                 ),
-                                const SizedBox(height: 18),
+                                const SizedBox(height: AppSpacing.lg),
                                 _MoreInfoCard(
                                   selectedTabIndex: _selectedDetailsTab,
                                   onTabSelected: (index) => setState(
@@ -187,7 +192,7 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                                   state: state,
                                   controller: controller,
                                 ),
-                                const SizedBox(height: 18),
+                                const SizedBox(height: AppSpacing.lg),
                                 _CommentsCard(
                                   persistentComments: persistentComments,
                                   hoveredComment: hoveredComment,
@@ -201,12 +206,12 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                                         state: state,
                                         controller: controller,
                                       ),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: AppSpacing.lg),
                                       _PartTwoColumn(
                                         state: state,
                                         controller: controller,
                                       ),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: AppSpacing.lg),
                                       sideColumn,
                                     ],
                                   )
@@ -220,14 +225,14 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                                           controller: controller,
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
+                                      const SizedBox(width: AppSpacing.lg),
                                       Expanded(
                                         child: _PartTwoColumn(
                                           state: state,
                                           controller: controller,
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
+                                      const SizedBox(width: AppSpacing.lg),
                                       Expanded(child: sideColumn),
                                     ],
                                   );
@@ -305,30 +310,24 @@ class _WorkspaceHeader extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: const Color(0xFF1E293B),
-                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                style: AppControls.secondaryButton(context).copyWith(
+                  minimumSize: const WidgetStatePropertyAll(
+                    Size.fromHeight(42),
                   ),
                 ),
                 onPressed: onReset,
                 child: const Text(
                   'Reset',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  backgroundColor: const Color(0xFF111827),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                style: AppControls.primaryButton(context).copyWith(
+                  minimumSize: const WidgetStatePropertyAll(
+                    Size.fromHeight(42),
                   ),
                 ),
                 onPressed: isCalculating ? null : onCalculate,
@@ -342,7 +341,7 @@ class _WorkspaceHeader extends StatelessWidget {
                         'Calculate',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
               ),
@@ -615,7 +614,7 @@ class _PartOneColumn extends StatelessWidget {
                   'Volts per Turn: ${state.design.stringAt('voltsPerTurn', fallback: '0')}',
                   style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -696,7 +695,7 @@ class _WindingInputColumn extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: accent,
             ),
           ),
@@ -779,7 +778,7 @@ class _FieldChoice extends StatelessWidget {
             label,
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: _twoWindingLvAccent,
             ),
           ),
@@ -812,7 +811,7 @@ class _PartTwoColumn extends StatelessWidget {
                 child: Text(
                   'Inner Winding LV',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: _twoWindingLvAccent,
                   ),
                   textAlign: TextAlign.center,
@@ -823,7 +822,7 @@ class _PartTwoColumn extends StatelessWidget {
                 child: Text(
                   'Outer Winding HV',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: _twoWindingHvAccent,
                   ),
                   textAlign: TextAlign.center,
@@ -1136,15 +1135,13 @@ class _CommentsCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: _twoWindingPanelDecoration(),
+      decoration: _twoWindingPanelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Comments',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: AppTextStyles.pageTitle(context),
           ),
           const SizedBox(height: 12),
           if (hasPersistentComments)
@@ -1159,14 +1156,7 @@ class _CommentsCard extends StatelessWidget {
           if (!hasPersistentComments && !hasHoveredComment)
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0x1F0F172A),
-                  style: BorderStyle.solid,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.white,
-              ),
+              decoration: AppDecorations.subtlePanel(context),
               child: Text(
                 'Hover field notes and design guidance will appear here.',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -1209,20 +1199,18 @@ class _MoreInfoCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _twoWindingPanelDecoration(),
+      decoration: _twoWindingPanelDecoration(context),
       child: Column(
         children: [
           InkWell(
             onTap: onExpansionChanged,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: AppRadii.control,
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     'More Info',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: AppTextStyles.pageTitle(context),
                   ),
                 ),
                 Icon(
@@ -1242,13 +1230,15 @@ class _MoreInfoCard extends StatelessWidget {
                 children: [
                   TabBar(
                     onTap: onTabSelected,
-                    labelColor: const Color(0xFF111827),
-                    unselectedLabelColor: const Color(0xFF5F6B7A),
-                    indicatorColor: _twoWindingLvAccent,
+                    labelColor: Theme.of(context).colorScheme.onSurface,
+                    unselectedLabelColor: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant,
+                    indicatorColor: Theme.of(context).colorScheme.primary,
                     labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                     labelStyle: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                     ),
                     tabs: [
                       for (final label in tabLabels)
@@ -1364,10 +1354,7 @@ class _TankCoolingTab extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: AppFormStyles.compactPanelPadding,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: AppDecorations.subtlePanel(context),
               child: Text(
                 state.design.stringAt('tankAndOilFormulas.coolingStatement'),
               ),
@@ -1432,14 +1419,131 @@ class _CoilDimensionsTab extends StatelessWidget {
     ];
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Coil Winding: Dimensions in mm',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        Container(
+          padding: AppFormStyles.compactPanelPadding,
+          decoration: AppDecorations.subtlePanel(context),
+          child: Row(
+            children: [
+              Icon(
+                Icons.straighten,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Coil winding dimensions',
+                  style: AppTextStyles.sectionTitle(context),
+                ),
+              ),
+              Text('mm', style: AppTextStyles.muted(context)),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        _ReadOnlySummary(rows: rows),
+        const SizedBox(height: AppSpacing.md),
+        _CoilDimensionsTable(rows: rows),
       ],
+    );
+  }
+}
+
+class _CoilDimensionsTable extends StatelessWidget {
+  const _CoilDimensionsTable({required this.rows});
+
+  final List<MapEntry<String, String>> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: AppDecorations.panel(context),
+      child: ClipRRect(
+        borderRadius: AppRadii.panel,
+        child: Table(
+          columnWidths: const {
+            0: FlexColumnWidth(1.1),
+            1: FlexColumnWidth(),
+          },
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            TableRow(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+              children: [
+                _CoilDimensionCell(
+                  text: 'Parameter',
+                  isHeader: true,
+                  alignRight: false,
+                ),
+                const _CoilDimensionCell(
+                  text: 'Dimension',
+                  isHeader: true,
+                ),
+              ],
+            ),
+            for (var index = 0; index < rows.length; index++)
+              TableRow(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                ),
+                children: [
+                  _CoilDimensionCell(text: rows[index].key, alignRight: false),
+                  _CoilDimensionCell(
+                    text: rows[index].value.trim().isEmpty
+                        ? '-'
+                        : rows[index].value,
+                    emphasize: index == rows.length - 1,
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoilDimensionCell extends StatelessWidget {
+  const _CoilDimensionCell({
+    required this.text,
+    this.isHeader = false,
+    this.alignRight = false,
+    this.emphasize = false,
+  });
+
+  final String text;
+  final bool isHeader;
+  final bool alignRight;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: alignRight ? TextAlign.right : TextAlign.left,
+        style:
+            (isHeader
+                    ? AppTextStyles.tableHeader(context)
+                    : Theme.of(context).textTheme.bodySmall)
+                ?.copyWith(
+                  color: isHeader
+                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      : Theme.of(context).colorScheme.onSurface,
+                  fontWeight: isHeader || emphasize
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                ),
+      ),
     );
   }
 }
@@ -1497,17 +1601,13 @@ class _CostingsTab extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _twoWindingPageBackground,
-            border: Border.all(color: _twoWindingPanelBorder),
-            borderRadius: BorderRadius.circular(6),
-          ),
+          decoration: AppDecorations.subtlePanel(context),
           child: Row(
             children: [
               const Expanded(
                 child: Text(
                   'Major material cost',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1526,7 +1626,7 @@ class _CostingsTab extends StatelessWidget {
         const SizedBox(height: 16),
         const Text(
           'Cost Estimations',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         Table(
@@ -1536,11 +1636,15 @@ class _CostingsTab extends StatelessWidget {
             2: FlexColumnWidth(1.3),
             3: FlexColumnWidth(1.1),
           },
-          border: TableBorder.all(color: _twoWindingPanelBorder),
+          border: TableBorder.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
           children: [
             TableRow(
-              decoration: const BoxDecoration(color: _twoWindingPageBackground),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
               children: [
                 for (final label in [
                   'Material',
@@ -1591,10 +1695,10 @@ class _CostingsTab extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Totals are calculated after running Calculate.',
           textAlign: TextAlign.right,
-          style: TextStyle(fontSize: 11, color: Color(0xFF5F6B7A)),
+          style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     );
@@ -1613,7 +1717,7 @@ class _CostCell extends StatelessWidget {
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: heading ? 11 : 12,
-        fontWeight: heading ? FontWeight.w700 : FontWeight.normal,
+        fontWeight: heading ? FontWeight.w600 : FontWeight.normal,
       ),
     ),
   );
@@ -1633,7 +1737,7 @@ class _MirroredRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1644,7 +1748,7 @@ class _MirroredRow extends StatelessWidget {
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontSize: 12,
                 height: 1.15,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
             ),
@@ -2092,19 +2196,17 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: _twoWindingPanelDecoration(),
+      padding: AppFormStyles.compactPanelPadding,
+      decoration: _twoWindingPanelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (title.isNotEmpty) ...[
             Text(
               title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              style: AppTextStyles.sectionTitle(context),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
           ],
           child,
         ],
@@ -2124,11 +2226,7 @@ class _CommentPanel extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: AppFormStyles.panelPadding,
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-      ),
+      decoration: AppDecorations.subtlePanel(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2136,9 +2234,9 @@ class _CommentPanel extends StatelessWidget {
             title,
             style: Theme.of(
               context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(message, style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
@@ -2164,7 +2262,7 @@ class _ReadOnlySummary extends StatelessWidget {
                   child: Text(
                     row.key,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -2187,36 +2285,22 @@ class _ReadOnlySummary extends StatelessWidget {
 const _twoWindingControlHeight = 30.0;
 const _twoWindingControlFontSize = 12.0;
 const _twoWindingControlIconSize = 16.0;
-const _twoWindingPageBackground = Color(0xFFF3F6FA);
-const _twoWindingInputFill = Color(0xFFEEF1F5);
-const _twoWindingPanelBorder = Color(0x1F0F172A);
 const _twoWindingLvAccent = Color(0xFF0081FF);
 const _twoWindingHvAccent = Color(0xFFFF5B1E);
 
 ThemeData _compactTwoWindingTheme(ThemeData theme) {
   return theme.copyWith(
     visualDensity: VisualDensity.compact,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: _twoWindingLvAccent,
-      brightness: Brightness.light,
-    ),
     textTheme: theme.textTheme.apply(
-      bodyColor: const Color(0xFF111827),
-      displayColor: const Color(0xFF111827),
+      fontFamily: 'Segoe UI',
+      bodyColor: theme.colorScheme.onSurface,
+      displayColor: theme.colorScheme.onSurface,
     ),
   );
 }
 
-BoxDecoration _twoWindingPanelDecoration() {
-  return BoxDecoration(
-    color: Colors.white,
-    border: Border.all(color: _twoWindingPanelBorder),
-    borderRadius: BorderRadius.circular(10),
-    boxShadow: const [
-      BoxShadow(color: Color(0x140F172A), offset: Offset(0, 8), blurRadius: 20),
-    ],
-  );
-}
+BoxDecoration _twoWindingPanelDecoration(BuildContext context) =>
+    AppDecorations.elevatedPanel(context);
 
 TextStyle? _twoWindingControlTextStyle(BuildContext context) {
   final theme = Theme.of(context);
@@ -2238,9 +2322,9 @@ Widget _twoWindingFieldLabel(BuildContext context, String label) {
     overflow: TextOverflow.ellipsis,
     style: Theme.of(context).textTheme.bodySmall?.copyWith(
       fontSize: 12,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w500,
       height: 1.1,
-      color: Theme.of(context).colorScheme.onSurface,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
     ),
   );
 }
@@ -2259,8 +2343,8 @@ InputDecoration _twoWindingDecoration(
     color: theme.colorScheme.onSurfaceVariant,
   );
   final border = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(5),
-    borderSide: const BorderSide(color: _twoWindingPanelBorder),
+    borderRadius: AppRadii.compact,
+    borderSide: BorderSide(color: theme.colorScheme.outline),
   );
 
   return InputDecoration(
@@ -2275,12 +2359,12 @@ InputDecoration _twoWindingDecoration(
       height: _twoWindingControlHeight,
     ),
     filled: true,
-    fillColor: _twoWindingInputFill,
+    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
     border: border,
     enabledBorder: border,
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(5),
-      borderSide: const BorderSide(color: Color(0xFF2196F3)),
+      borderRadius: AppRadii.compact,
+      borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.2),
     ),
     isDense: false,
   );
@@ -2294,7 +2378,7 @@ ButtonStyle _compactSegmentedButtonStyle() {
       EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     ),
     shape: WidgetStatePropertyAll(
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      RoundedRectangleBorder(borderRadius: AppRadii.compact),
     ),
   );
 }
@@ -2368,7 +2452,7 @@ class _LabeledInputState extends State<_LabeledInput> {
             decoration: _twoWindingDecoration(
               context,
               suffixIcon: widget.suffixIcon,
-            ).copyWith(fillColor: _twoWindingInputFill),
+            ),
           ),
         ),
       ),
@@ -2442,7 +2526,9 @@ class _LockButton extends StatelessWidget {
     ),
     tooltip:
         '${isLocked ? 'Unlock' : 'Lock'}${subject.isEmpty ? '' : ' $subject'}',
-    color: isLocked ? _twoWindingLvAccent : const Color(0xFF5F6B7A),
+    color: isLocked
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant,
     onPressed: onPressed,
     icon: Icon(
       isLocked ? Icons.lock : Icons.lock_open,
@@ -2501,10 +2587,10 @@ Widget _dropdownField(
             ),
             initialValue: effectiveValue,
             isExpanded: true,
-            iconEnabledColor: const Color(0xFF5F6B7A),
+            iconEnabledColor: Theme.of(context).colorScheme.onSurfaceVariant,
             style: _twoWindingControlTextStyle(context)?.copyWith(
-              color: const Color(0xFF111827),
-              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
             ),
             decoration: _twoWindingDecoration(context),
             items: items
@@ -2515,8 +2601,8 @@ Widget _dropdownField(
                       _optionLabel(item),
                       overflow: TextOverflow.ellipsis,
                       style: _twoWindingControlTextStyle(context)?.copyWith(
-                        color: const Color(0xFF111827),
-                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'app_radii.dart';
+import 'app_spacing.dart';
+
 class AppFormStyles {
   const AppFormStyles._();
 
-  static const double controlHeight = 40;
+  static const double controlHeight = AppSpacing.controlHeight;
   static const double controlFontSize = 12;
-  static const double controlIconSize = 18;
-  static const EdgeInsets pagePadding = EdgeInsets.fromLTRB(16, 10, 16, 16);
-  static const EdgeInsets panelPadding = EdgeInsets.all(14);
-  static const EdgeInsets compactPanelPadding = EdgeInsets.all(10);
+  static const double controlIconSize = 16;
+  static const EdgeInsets pagePadding = AppSpacing.pagePadding;
+  static const EdgeInsets panelPadding = AppSpacing.panelPadding;
+  static const EdgeInsets compactPanelPadding = AppSpacing.compactPanelPadding;
   static const BoxConstraints iconConstraints = BoxConstraints(
-    minWidth: 36,
+    minWidth: 34,
     minHeight: controlHeight,
   );
 
@@ -57,8 +60,8 @@ class AppFormStyles {
       prefixIconConstraints: iconConstraints,
       suffixIcon: suffixIcon,
       suffixIconConstraints: iconConstraints,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: const OutlineInputBorder(),
+      contentPadding: AppSpacing.controlPadding,
+      border: const OutlineInputBorder(borderRadius: AppRadii.control),
       isDense: true,
     );
   }

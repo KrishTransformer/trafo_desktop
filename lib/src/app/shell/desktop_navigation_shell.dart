@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../app_scope.dart';
 import '../../core/config/app_environment.dart';
+import '../../core/presentation/app_radii.dart';
+import '../../core/presentation/app_spacing.dart';
+import '../../core/presentation/app_text_styles.dart';
 import '../../core/presentation/loading_overlay.dart';
 import '../../features/home/domain/models/design_summary.dart';
 import '../router/route_paths.dart';
@@ -161,31 +164,25 @@ class _ShellDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Drawer(
-      width: 248,
+      width: AppSpacing.sidebarWidth,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Trafo Desktop',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: AppTextStyles.pageTitle(context),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Navigation',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: AppTextStyles.muted(context),
                   ),
                 ],
               ),
@@ -234,8 +231,8 @@ class _ContentPane extends StatelessWidget {
     return Column(
       children: [
         Container(
-          height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          height: AppSpacing.topBarHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             border: Border(
@@ -248,7 +245,7 @@ class _ContentPane extends StatelessWidget {
             children: [
               if (showDrawerButton)
                 Padding(
-                  padding: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
                   child: Builder(
                     builder: (context) {
                       return IconButton(
@@ -267,16 +264,12 @@ class _ContentPane extends StatelessWidget {
                   children: [
                     Text(
                       destination.label,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppTextStyles.sectionTitle(context),
                     ),
-                    const SizedBox(height: 1),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       contextLabel,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                      style: AppTextStyles.muted(context),
                     ),
                   ],
                 ),
@@ -315,22 +308,27 @@ class _DrawerDestinationTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: ListTile(
         onTap: onTap,
         dense: true,
         visualDensity: VisualDensity.compact,
+        minLeadingWidth: 28,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
         selected: selected,
         selectedTileColor: theme.colorScheme.primaryContainer,
         selectedColor: theme.colorScheme.primary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.control),
         leading: Icon(
           selected ? destination.selectedIcon : destination.icon,
-          size: 20,
+          size: 18,
         ),
         title: Text(
           destination.label,
-          style: theme.textTheme.bodyMedium?.copyWith(
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurface,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
@@ -353,15 +351,16 @@ class _EnvironmentChip extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: AppRadii.pillRadius,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
