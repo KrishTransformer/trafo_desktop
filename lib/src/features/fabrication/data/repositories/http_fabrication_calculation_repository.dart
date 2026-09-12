@@ -15,7 +15,7 @@ class HttpFabricationCalculationRepository
     FabricationCalculationRequest request,
   ) {
     return _apiClient.post<FabricationCalculationResult>(
-      service: ApiService.common,
+      service: ApiService.core,
       path: '/calculate/fabrication',
       data: request.toJson(),
       decoder: (data) => FabricationCalculationResult.fromJson(

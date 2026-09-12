@@ -19,6 +19,7 @@ import 'package:trafo_desktop/src/features/fabrication/domain/models/fabrication
 
 void main() {
   late _RecordingAdapter commonAdapter;
+  late _RecordingAdapter coreAdapter;
   late _RecordingAdapter cadAdapter;
   late _RecordingAdapter storageAdapter;
   late HttpFabricationCalculationRepository calculationRepository;
@@ -28,6 +29,7 @@ void main() {
 
   setUp(() {
     commonAdapter = _RecordingAdapter();
+    coreAdapter = _RecordingAdapter();
     cadAdapter = _RecordingAdapter();
     storageAdapter = _RecordingAdapter();
 
@@ -36,6 +38,7 @@ void main() {
       tokenStorage: _FakeTokenStorage(),
     );
     apiClient.clientFor(ApiService.common).httpClientAdapter = commonAdapter;
+    apiClient.clientFor(ApiService.core).httpClientAdapter = coreAdapter;
     apiClient.clientFor(ApiService.cad).httpClientAdapter = cadAdapter;
     apiClient.clientFor(ApiService.storage).httpClientAdapter = storageAdapter;
 
@@ -46,7 +49,7 @@ void main() {
   });
 
   test('calculate posts to the documented fabrication endpoint', () async {
-    commonAdapter.nextResponseJson = <String, dynamic>{
+    coreAdapter.nextResponseJson = <String, dynamic>{
       'restOfVariables': <String, dynamic>{'designId': '100k-12345'},
       'tank': <String, dynamic>{'tank_L': 1000},
     };
@@ -60,9 +63,9 @@ void main() {
       }),
     );
 
-    expect(commonAdapter.lastOptions?.method, 'POST');
-    expect(commonAdapter.lastOptions?.path, '/calculate/fabrication');
-    expect(commonAdapter.lastDecodedBody, <String, dynamic>{
+    expect(coreAdapter.lastOptions?.method, 'POST');
+    expect(coreAdapter.lastOptions?.path, '/calculate/fabrication');
+    expect(coreAdapter.lastDecodedBody, <String, dynamic>{
       'designId': '100k-12345',
       'kVA': '100',
       'tank_L': 1000,

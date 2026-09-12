@@ -142,15 +142,17 @@ class AppRouter {
                      routes: [
                        GoRoute(
                          path: ':designId',
-                         builder: (context, state) => CoreModelScreen(
-                           routeDesignId:
-                               state.pathParameters['designId'] ?? '',
-                           initialDesignSummary: state.extra is DesignSummary
-                               ? state.extra as DesignSummary
-                               : DesignNavigationMemory.summaryFor(
-                                   state.pathParameters['designId'] ?? '',
-                                 ),
-                         ),
+                         builder: (context, state) {
+                           final designId =
+                               state.pathParameters['designId'] ?? '';
+                           return CoreModelScreen(
+                             key: ValueKey(('core', designId)),
+                             routeDesignId: designId,
+                             initialDesignSummary: state.extra is DesignSummary
+                                 ? state.extra as DesignSummary
+                                 : DesignNavigationMemory.summaryFor(designId),
+                           );
+                         },
                        ),
                      ],
                    ),
@@ -165,15 +167,17 @@ class AppRouter {
                      routes: [
                        GoRoute(
                          path: ':designId',
-                         builder: (context, state) => FabricationScreen(
-                           routeDesignId:
-                               state.pathParameters['designId'] ?? '',
-                           initialDesignSummary: state.extra is DesignSummary
-                               ? state.extra as DesignSummary
-                               : DesignNavigationMemory.summaryFor(
-                                   state.pathParameters['designId'] ?? '',
-                                 ),
-                         ),
+                         builder: (context, state) {
+                           final designId =
+                               state.pathParameters['designId'] ?? '';
+                           return FabricationScreen(
+                             key: ValueKey(('fabrication', designId)),
+                             routeDesignId: designId,
+                             initialDesignSummary: state.extra is DesignSummary
+                                 ? state.extra as DesignSummary
+                                 : DesignNavigationMemory.summaryFor(designId),
+                           );
+                         },
                        ),
                      ],
                    ),
@@ -188,15 +192,17 @@ class AppRouter {
                      routes: [
                        GoRoute(
                          path: ':designId',
-                         builder: (context, state) => FilesScreen(
-                           routeDesignId:
-                               state.pathParameters['designId'] ?? '',
-                           initialDesignSummary: state.extra is DesignSummary
-                               ? state.extra as DesignSummary
-                               : DesignNavigationMemory.summaryFor(
-                                   state.pathParameters['designId'] ?? '',
-                                 ),
-                         ),
+                         builder: (context, state) {
+                           final designId =
+                               state.pathParameters['designId'] ?? '';
+                           return FilesScreen(
+                             key: ValueKey(('files', designId)),
+                             routeDesignId: designId,
+                             initialDesignSummary: state.extra is DesignSummary
+                                 ? state.extra as DesignSummary
+                                 : DesignNavigationMemory.summaryFor(designId),
+                           );
+                         },
                        ),
                      ],
                    ),

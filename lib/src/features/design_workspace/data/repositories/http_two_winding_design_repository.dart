@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
+
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_service.dart';
 import '../../domain/models/two_winding_design.dart';
@@ -23,7 +25,7 @@ class HttpTwoWindingDesignRepository implements TwoWindingDesignRepository {
     required String designId,
     required TwoWindingDesign design,
   }) async {
-    final response = await _apiClient.put<Map<String, dynamic>>(
+    final response = await _apiClient.put<String>(
       service: ApiService.common,
       path: '/entity/design',
       data: <String, dynamic>{
@@ -31,10 +33,41 @@ class HttpTwoWindingDesignRepository implements TwoWindingDesignRepository {
         'designType': 'two',
         'twoWindings': _sanitizeJsonString(design.toJson()),
       },
-      decoder: (data) =>
-          Map<String, dynamic>.from(data as Map<Object?, Object?>),
+      responseType: ResponseType.plain,
+      decoder: _decodeCreateDesignResponse,
     );
+    return response;
+  }
 
+  String _decodeCreateDesignResponse(dynamic data) {
+    if (data is String) {
+      final text = data.trim();
+      if (text.isEmpty) {
+        return '';
+      }
+
+      if (text.startsWith('{')) {
+        return _readIdFromMap(
+          Map<String, dynamic>.from(jsonDecode(text) as Map<Object?, Object?>),
+        );
+      }
+
+      if (text.startsWith('"')) {
+        final decoded = jsonDecode(text);
+        return decoded is String ? decoded : text;
+      }
+
+      return text;
+    }
+
+    if (data is Map<Object?, Object?>) {
+      return _readIdFromMap(Map<String, dynamic>.from(data));
+    }
+
+    return '';
+  }
+
+  String _readIdFromMap(Map<String, dynamic> response) {
     final directId = response['id'];
     if (directId is String && directId.isNotEmpty) {
       return directId;

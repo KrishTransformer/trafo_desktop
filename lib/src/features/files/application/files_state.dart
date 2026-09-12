@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../design_workspace/domain/models/core_calculation_result.dart';
 import '../../design_workspace/domain/models/two_winding_design.dart';
 import '../../fabrication/domain/models/fabrication_calculation_result.dart';
+import '../../multi_winding/domain/models/multi_winding_design.dart';
 import '../domain/models/lom_line_item.dart';
 import '../domain/models/lom_material_entry.dart';
 
@@ -19,6 +20,7 @@ class FilesState {
     required this.entityId,
     required this.designId,
     required this.twoWindingDesign,
+    required this.multiWindingDesign,
     required this.coreResult,
     required this.fabricationResult,
     required this.materials,
@@ -42,6 +44,7 @@ class FilesState {
       entityId: '',
       designId: '',
       twoWindingDesign: null,
+      multiWindingDesign: null,
       coreResult: null,
       fabricationResult: null,
       materials: const <LomMaterialEntry>[],
@@ -64,6 +67,7 @@ class FilesState {
   final String entityId;
   final String designId;
   final TwoWindingDesign? twoWindingDesign;
+  final MultiWindingDesign? multiWindingDesign;
   final CoreCalculationResult? coreResult;
   final FabricationCalculationResult? fabricationResult;
   final List<LomMaterialEntry> materials;
@@ -122,6 +126,8 @@ class FilesState {
     String? designId,
     TwoWindingDesign? twoWindingDesign,
     bool clearTwoWindingDesign = false,
+    MultiWindingDesign? multiWindingDesign,
+    bool clearMultiWindingDesign = false,
     CoreCalculationResult? coreResult,
     bool clearCoreResult = false,
     FabricationCalculationResult? fabricationResult,
@@ -147,6 +153,9 @@ class FilesState {
       twoWindingDesign: clearTwoWindingDesign
           ? null
           : twoWindingDesign ?? this.twoWindingDesign,
+      multiWindingDesign: clearMultiWindingDesign
+          ? null
+          : multiWindingDesign ?? this.multiWindingDesign,
       coreResult: clearCoreResult ? null : coreResult ?? this.coreResult,
       fabricationResult: clearFabricationResult
           ? null

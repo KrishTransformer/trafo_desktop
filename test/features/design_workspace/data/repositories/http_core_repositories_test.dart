@@ -15,25 +15,28 @@ import 'package:trafo_desktop/src/features/design_workspace/domain/models/core_c
 import 'package:trafo_desktop/src/features/design_workspace/domain/models/core_stack_request_entry.dart';
 
 void main() {
-  late _RecordingAdapter adapter;
+  late _RecordingAdapter commonAdapter;
+  late _RecordingAdapter coreAdapter;
   late HttpCoreCalculationRepository calculationRepository;
   late HttpCoreDesignRepository designRepository;
 
   setUp(() {
-    adapter = _RecordingAdapter();
+    commonAdapter = _RecordingAdapter();
+    coreAdapter = _RecordingAdapter();
 
     final apiClient = ApiClient(
       environment: _testEnvironment,
       tokenStorage: _FakeTokenStorage(),
     );
-    apiClient.clientFor(ApiService.common).httpClientAdapter = adapter;
+    apiClient.clientFor(ApiService.common).httpClientAdapter = commonAdapter;
+    apiClient.clientFor(ApiService.core).httpClientAdapter = coreAdapter;
 
     calculationRepository = HttpCoreCalculationRepository(apiClient);
     designRepository = HttpCoreDesignRepository(apiClient);
   });
 
   test('calculate posts to the documented core endpoint', () async {
-    adapter.nextResponseJson = <String, dynamic>{
+    coreAdapter.nextResponseJson = <String, dynamic>{
       'coreArea': 1234,
       'bldStacks': <Map<String, dynamic>>[
         <String, dynamic>{'stepNo': 1, 'width': 45, 'stack': 30},
@@ -56,9 +59,11 @@ void main() {
       ),
     );
 
-    expect(adapter.lastOptions?.method, 'POST');
-    expect(adapter.lastOptions?.path, '/calculate/core');
-    expect(adapter.lastDecodedBody, <String, dynamic>{
+    expect(coreAdapter.lastOptions?.method, 'POST');
+    expect(coreAdapter.lastOptions?.uri.host, 'core.example.com');
+    expect(coreAdapter.lastOptions?.path, '/calculate/core');
+    expect(commonAdapter.lastOptions, isNull);
+    expect(coreAdapter.lastDecodedBody, <String, dynamic>{
       'coreDiameter': 220,
       'limbHt': 560,
       'cenDist': 340,
@@ -78,7 +83,7 @@ void main() {
   test(
     'persistCore updates the existing design entity with serialized core JSON',
     () async {
-      adapter.nextResponseJson = const <String, dynamic>{};
+      commonAdapter.nextResponseJson = const <String, dynamic>{};
 
       await designRepository.persistCore(
         entityId: 'entity-7',
@@ -90,9 +95,9 @@ void main() {
         }),
       );
 
-      final requestBody = adapter.lastDecodedBody!;
-      expect(adapter.lastOptions?.method, 'PUT');
-      expect(adapter.lastOptions?.path, '/entity/design/entity-7');
+      final requestBody = commonAdapter.lastDecodedBody!;
+      expect(commonAdapter.lastOptions?.method, 'PUT');
+      expect(commonAdapter.lastOptions?.path, '/entity/design/entity-7');
       expect(requestBody.keys, <String>['core']);
       expect(requestBody['core'], isA<String>());
       expect(jsonDecode(requestBody['core'] as String), <String, dynamic>{

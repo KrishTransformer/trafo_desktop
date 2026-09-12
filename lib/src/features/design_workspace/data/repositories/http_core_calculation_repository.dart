@@ -12,7 +12,7 @@ class HttpCoreCalculationRepository implements CoreCalculationRepository {
   @override
   Future<CoreCalculationResult> calculate(CoreCalculationRequest request) {
     return _apiClient.post<CoreCalculationResult>(
-      service: ApiService.common,
+      service: ApiService.core,
       path: '/calculate/core',
       data: request.toJson(),
       decoder: (data) => CoreCalculationResult.fromJson(

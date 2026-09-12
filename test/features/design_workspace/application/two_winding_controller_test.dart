@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:trafo_desktop/src/core/network/api_exception.dart';
 import 'package:trafo_desktop/src/features/design_workspace/application/two_winding_controller.dart';
 import 'package:trafo_desktop/src/features/design_workspace/domain/models/two_winding_design.dart';
 import 'package:trafo_desktop/src/features/design_workspace/domain/repositories/two_winding_calculation_repository.dart';
@@ -158,6 +159,49 @@ void main() {
     },
   );
 
+  test(
+    'calculated values remain visible when design persistence fails',
+    () async {
+      final calculationRepository = _FakeCalculationRepository(
+        response: TwoWindingDesign.initial()
+            .copyWithPath('kVA', 200)
+            .copyWithPath('core.coreDia', 135)
+            .copyWithPath('tank.tankLength', 815)
+            .copyWithPath('innerWindings.turnsPerPhase', 51.0),
+      );
+      final designRepository = _FakeDesignRepository(
+        exception: const ApiException(
+          type: ApiExceptionType.badResponse,
+          message: 'The server returned an unexpected response.',
+        ),
+      );
+      final controller = TwoWindingController(
+        routeId: 'new',
+        calculationRepository: calculationRepository,
+        designRepository: designRepository,
+        random: Random(1),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      final success = await controller.calculate();
+
+      expect(success, isFalse);
+      expect(controller.state.design.readPath('core.coreDia'), 135);
+      expect(controller.state.design.readPath('tank.tankLength'), 815);
+      expect(
+        controller.state.design.readPath('innerWindings.turnsPerPhase'),
+        51.0,
+      );
+      expect(controller.state.metadata.designId, startsWith('200k-'));
+      expect(controller.state.metadata.entityId, isEmpty);
+      expect(
+        controller.state.errorMessage,
+        contains('Calculated values are shown'),
+      );
+    },
+  );
+
   testWidgets(
     'queued hover comment updates do not notify after controller disposal',
     (tester) async {
@@ -193,6 +237,9 @@ class _FakeCalculationRepository implements TwoWindingCalculationRepository {
 }
 
 class _FakeDesignRepository implements TwoWindingDesignRepository {
+  _FakeDesignRepository({this.exception});
+
+  final ApiException? exception;
   String createdDesignId = '';
   TwoWindingDesign? createdDesign;
 
@@ -203,6 +250,10 @@ class _FakeDesignRepository implements TwoWindingDesignRepository {
   }) async {
     createdDesignId = designId;
     createdDesign = design;
+    final exception = this.exception;
+    if (exception != null) {
+      throw exception;
+    }
     return 'entity-created-1';
   }
 }

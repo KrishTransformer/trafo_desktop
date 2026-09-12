@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/app_scope.dart';
+import '../../../app/shell/desktop_navigation_shell.dart';
 import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
@@ -34,6 +35,7 @@ class _FabricationScreenState extends State<FabricationScreen> {
   FabricationController? _controller;
   bool _ownsController = false;
   String _lastErrorMessage = '';
+  String _lastRememberedFabricationSignature = '';
   int _activeDetailTab = 0;
   int _activeAccessoriesTab = 0;
 
@@ -85,6 +87,8 @@ class _FabricationScreenState extends State<FabricationScreen> {
       return;
     }
 
+    _rememberCalculatedFabrication(controller.state);
+
     final errorMessage = controller.state.errorMessage;
     if (errorMessage.isEmpty || errorMessage == _lastErrorMessage) {
       return;
@@ -100,6 +104,40 @@ class _FabricationScreenState extends State<FabricationScreen> {
       _controller?.clearErrorMessage();
       _lastErrorMessage = '';
     });
+  }
+
+  void _rememberCalculatedFabrication(FabricationState state) {
+    final result = state.result;
+    if (result == null || state.entityId.isEmpty) {
+      return;
+    }
+
+    final signature = '${state.entityId}:${identityHashCode(result)}';
+    if (signature == _lastRememberedFabricationSignature) {
+      return;
+    }
+
+    final base =
+        DesignNavigationMemory.summaryFor(state.entityId) ??
+        widget.initialDesignSummary;
+    DesignNavigationMemory.rememberSummary(
+      DesignSummary(
+        id: state.entityId,
+        designId: state.designId.isNotEmpty
+            ? state.designId
+            : base?.designId ?? state.entityId,
+        designType: base?.designType ?? 'two',
+        twoWindings: state.twoWindingDesign?.toJson() ?? base?.twoWindings,
+        multiWindings: base?.multiWindings,
+        core: state.coreResult?.toJson() ?? base?.core,
+        fabrication: result.toJson(),
+        lom: base?.lom,
+        createdAt: base?.createdAt,
+        updatedAt: base?.updatedAt,
+        ownerId: base?.ownerId,
+      ),
+    );
+    _lastRememberedFabricationSignature = signature;
   }
 
   @override

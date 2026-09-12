@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../app/shell/desktop_navigation_shell.dart';
 import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
@@ -30,6 +31,7 @@ class TwoWindingScreen extends StatefulWidget {
 class _TwoWindingScreenState extends State<TwoWindingScreen> {
   TwoWindingController? _controller;
   String _lastErrorMessage = '';
+  String _rememberedEntityId = '';
   int _selectedDetailsTab = 0;
   bool _isMoreInfoExpanded = false;
 
@@ -67,6 +69,8 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
       return;
     }
 
+    _syncSavedDesignNavigation(controller.state);
+
     final errorMessage = controller.state.errorMessage;
     if (errorMessage.isEmpty || errorMessage == _lastErrorMessage) {
       return;
@@ -81,6 +85,29 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
       await AppErrorDialog.show(context, message: errorMessage);
       _controller?.clearErrorMessage();
       _lastErrorMessage = '';
+    });
+  }
+
+  void _syncSavedDesignNavigation(TwoWindingState state) {
+    final entityId = state.metadata.entityId;
+    if (entityId.isEmpty || entityId == _rememberedEntityId) {
+      return;
+    }
+
+    _rememberedEntityId = entityId;
+    final summary = _buildCoreLaunchSummary(state);
+    DesignNavigationMemory.rememberSummary(summary);
+
+    if (widget.routeDesignId != 'new') {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final router = GoRouter.maybeOf(context);
+      router?.go(RoutePaths.twoWindingsDesign(entityId), extra: summary);
     });
   }
 
@@ -212,25 +239,7 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
-                                  children: [
-                                    const Text(
-                                      'Two Winding Design',
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text(
-                                      'Configure transformer inputs, winding details, and calculated dimensions.',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Color(0xFF5F6B7A),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    content,
-                                  ],
+                                  children: [content],
                                 ),
                               ),
                             );

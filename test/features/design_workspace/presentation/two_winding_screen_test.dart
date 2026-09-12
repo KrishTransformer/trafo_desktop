@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +11,7 @@ import 'package:trafo_desktop/src/app/router/app_router.dart';
 import 'package:trafo_desktop/src/app/router/route_paths.dart';
 import 'package:trafo_desktop/src/core/config/app_environment.dart';
 import 'package:trafo_desktop/src/core/network/api_client.dart';
+import 'package:trafo_desktop/src/core/network/api_service.dart';
 import 'package:trafo_desktop/src/core/storage/token_storage.dart';
 import 'package:trafo_desktop/src/features/authentication/application/auth_controller.dart';
 import 'package:trafo_desktop/src/features/authentication/domain/models/auth_session.dart';
@@ -270,7 +275,7 @@ void main() {
       tester,
     ) async {
       await open(tester, size: Size(width, 768));
-      expect(find.text('Two Winding Design'), findsOneWidget);
+      expect(find.text('Calculate'), findsOneWidget);
       expect(find.text('Tank Details'), findsOneWidget);
       expect(find.text('Inner Winding LV'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -379,11 +384,82 @@ void main() {
     expect(find.text('Oil Temp'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Calculate sends the 2Wdg payload and applies returned values', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1366, 768);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final commonAdapter = _RecordingAdapter()
+      ..nextResponseJson = <String, dynamic>{'id': 'saved-200'};
+    final coreAdapter = _RecordingAdapter()
+      ..nextResponseJson = TwoWindingDesign.initial()
+          .copyWithPath('kVA', '200')
+          .copyWithPath('core.coreDia', '321')
+          .copyWithPath('core.limbHt', '654')
+          .copyWithPath('tank.tankLength', '1200')
+          .toJson();
+
+    await tester.pumpWidget(
+      _buildScreen(
+        const DesignSummary(id: 'new', designId: ''),
+        commonAdapter: commonAdapter,
+        coreAdapter: coreAdapter,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(input('kVA'), '200');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calculate'));
+    await tester.pumpAndSettle();
+
+    expect(coreAdapter.lastOptions?.method, 'POST');
+    expect(coreAdapter.lastOptions?.path, '/calculate/2windings/circular');
+    expect(coreAdapter.lastOptions?.headers['User-Calc'].toString(), 'true');
+
+    final calculationPayload = coreAdapter.lastDecodedBody!;
+    expect(calculationPayload['kVA'], '200');
+    expect(calculationPayload['lowVoltage'], 433);
+    expect(calculationPayload['highVoltage'], 11000);
+    expect(calculationPayload['frequency'], '50');
+    expect(calculationPayload['tapStepsPercent'], isNull);
+    expect(calculationPayload['dryTempClass'], isNull);
+    expect(calculationPayload['core']['coreDia'], isNull);
+    expect(calculationPayload['core']['cenDist'], isNull);
+    expect(calculationPayload['innerWindings']['turnsPerPhase'], isNull);
+    expect(calculationPayload['innerWindings']['terminal'], isNull);
+    expect(calculationPayload['outerWindings']['turnsPerPhase'], isNull);
+    expect(calculationPayload['outerWindings']['terminal'], isNull);
+
+    expect(commonAdapter.lastOptions?.method, 'PUT');
+    expect(commonAdapter.lastOptions?.path, '/entity/design');
+    expect(commonAdapter.lastDecodedBody?['designType'], 'two');
+    expect(commonAdapter.lastDecodedBody?['designId'], startsWith('200k-'));
+
+    final persisted =
+        jsonDecode(commonAdapter.lastDecodedBody?['twoWindings'] as String)
+            as Map<String, dynamic>;
+    expect(persisted['designId'], startsWith('200k-'));
+    expect((persisted['core'] as Map<String, dynamic>)['coreDia'], '321');
+
+    expect(
+      tester.widget<TextFormField>(input('Core Diameter')).controller!.text,
+      '321',
+    );
+    expect(find.text('Open Core'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Widget _buildScreen(
   DesignSummary summary, {
   Widget Function(AppDependencies)? appBuilder,
+  HttpClientAdapter? commonAdapter,
+  HttpClientAdapter? coreAdapter,
 }) {
   final tokenStorage = _InMemoryTokenStorage();
   final environment = AppEnvironment(
@@ -402,6 +478,12 @@ Widget _buildScreen(
     environment: environment,
     tokenStorage: tokenStorage,
   );
+  if (commonAdapter != null) {
+    apiClient.clientFor(ApiService.common).httpClientAdapter = commonAdapter;
+  }
+  if (coreAdapter != null) {
+    apiClient.clientFor(ApiService.core).httpClientAdapter = coreAdapter;
+  }
   final authController = AuthController(
     authRepository: _FakeAuthRepository(),
     configRepository: _FakeConfigRepository(),
@@ -516,4 +598,46 @@ class _InMemoryTokenStorage implements TokenStorage {
 
   @override
   Future<void> writeRefreshToken(String token) async {}
+}
+
+class _RecordingAdapter implements HttpClientAdapter {
+  RequestOptions? lastOptions;
+  Map<String, dynamic>? lastDecodedBody;
+  Map<String, dynamic> nextResponseJson = const <String, dynamic>{};
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    lastOptions = options;
+
+    final requestBytes =
+        await requestStream
+            ?.fold<BytesBuilder>(
+              BytesBuilder(),
+              (builder, chunk) => builder..add(chunk),
+            )
+            .then((builder) => builder.takeBytes()) ??
+        Uint8List(0);
+
+    if (requestBytes.isEmpty) {
+      lastDecodedBody = null;
+    } else {
+      lastDecodedBody =
+          jsonDecode(utf8.decode(requestBytes)) as Map<String, dynamic>;
+    }
+
+    return ResponseBody.fromString(
+      jsonEncode(nextResponseJson),
+      200,
+      headers: const <String, List<String>>{
+        'content-type': <String>['application/json'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

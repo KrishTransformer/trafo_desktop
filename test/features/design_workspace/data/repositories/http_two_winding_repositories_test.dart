@@ -96,6 +96,7 @@ void main() {
       expect(adapter.lastOptions?.uri.host, 'common.example.com');
       expect(adapter.lastOptions?.method, 'PUT');
       expect(adapter.lastOptions?.path, '/entity/design');
+      expect(adapter.lastOptions?.responseType, ResponseType.plain);
       expect(adapter.lastDecodedBody?['designType'], 'two');
       expect(controller.state.design.readPath('core.coreDia'), 250);
       expect(controller.state.metadata.entityId, 'saved-200');
@@ -141,6 +142,24 @@ void main() {
       expect(entityId, 'entity-7');
     },
   );
+
+  test(
+    'createDesign accepts the common service plain-text id response',
+    () async {
+      adapter.nextResponseBody = 'plain-entity-9';
+
+      final entityId = await designRepository.createDesign(
+        designId: '100k-12345',
+        design: TwoWindingDesign.initial().copyWithPath(
+          'designId',
+          '100k-12345',
+        ),
+      );
+
+      expect(adapter.lastOptions?.responseType, ResponseType.plain);
+      expect(entityId, 'plain-entity-9');
+    },
+  );
 }
 
 final AppEnvironment _testEnvironment = AppEnvironment(
@@ -177,6 +196,7 @@ class _RecordingAdapter implements HttpClientAdapter {
   RequestOptions? lastOptions;
   Map<String, dynamic>? lastDecodedBody;
   Map<String, dynamic> nextResponseJson = const <String, dynamic>{};
+  String? nextResponseBody;
 
   @override
   Future<ResponseBody> fetch(
@@ -202,11 +222,14 @@ class _RecordingAdapter implements HttpClientAdapter {
       lastDecodedBody = null;
     }
 
+    final responseBody = nextResponseBody ?? jsonEncode(nextResponseJson);
     return ResponseBody.fromString(
-      jsonEncode(nextResponseJson),
+      responseBody,
       200,
-      headers: const <String, List<String>>{
-        'content-type': <String>['application/json'],
+      headers: <String, List<String>>{
+        'content-type': <String>[
+          nextResponseBody == null ? 'application/json' : 'text/plain',
+        ],
       },
     );
   }

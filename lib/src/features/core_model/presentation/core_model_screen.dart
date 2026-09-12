@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/app_scope.dart';
+import '../../../app/shell/desktop_navigation_shell.dart';
 import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
@@ -31,6 +32,7 @@ class CoreModelScreen extends StatefulWidget {
 class _CoreModelScreenState extends State<CoreModelScreen> {
   CoreModelController? _controller;
   String _lastErrorMessage = '';
+  String _lastRememberedCoreSignature = '';
 
   @override
   void didChangeDependencies() {
@@ -66,6 +68,8 @@ class _CoreModelScreenState extends State<CoreModelScreen> {
       return;
     }
 
+    _rememberCalculatedCore(controller.state);
+
     final errorMessage = controller.state.errorMessage;
     if (errorMessage.isEmpty || errorMessage == _lastErrorMessage) {
       return;
@@ -81,6 +85,43 @@ class _CoreModelScreenState extends State<CoreModelScreen> {
       _controller?.clearErrorMessage();
       _lastErrorMessage = '';
     });
+  }
+
+  void _rememberCalculatedCore(CoreModelState state) {
+    final result = state.result;
+    if (result == null || state.entityId.isEmpty) {
+      return;
+    }
+
+    final signature = '${state.entityId}:${identityHashCode(result)}';
+    if (signature == _lastRememberedCoreSignature) {
+      return;
+    }
+
+    final base =
+        DesignNavigationMemory.summaryFor(state.entityId) ??
+        widget.initialDesignSummary;
+    DesignNavigationMemory.rememberSummary(
+      DesignSummary(
+        id: state.entityId,
+        designId: state.designId.isNotEmpty
+            ? state.designId
+            : base?.designId ?? state.entityId,
+        designType:
+            base?.designType ??
+            (state.multiWindingDesign != null ? 'multi' : 'two'),
+        twoWindings: state.twoWindingDesign?.toJson() ?? base?.twoWindings,
+        multiWindings:
+            state.multiWindingDesign?.toJson() ?? base?.multiWindings,
+        core: result.toJson(),
+        fabrication: base?.fabrication,
+        lom: base?.lom,
+        createdAt: base?.createdAt,
+        updatedAt: base?.updatedAt,
+        ownerId: base?.ownerId,
+      ),
+    );
+    _lastRememberedCoreSignature = signature;
   }
 
   @override

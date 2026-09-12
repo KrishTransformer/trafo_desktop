@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../app_scope.dart';
 import '../../core/config/app_environment.dart';
 import '../../core/presentation/loading_overlay.dart';
 import '../../features/home/domain/models/design_summary.dart';
@@ -53,6 +56,11 @@ class DesktopNavigationShell extends StatelessWidget {
     BuildContext context,
     _ShellDestination destination,
   ) {
+    if (destination.route == RoutePaths.home) {
+      unawaited(
+        AppScope.of(context).homeController.initialize(forceRefresh: true),
+      );
+    }
     DesignNavigationMemory._remember(destination);
     context.go(destination.route);
   }

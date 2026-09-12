@@ -177,22 +177,37 @@ class TwoWindingController extends ChangeNotifier {
         'designId',
         generatedDesignId,
       );
-      final entityId = await _designRepository.createDesign(
-        designId: generatedDesignId,
-        design: persistedDesign,
-      );
-
       _baselineDesign = persistedDesign;
       _setState(
         _state.copyWith(
-          isCalculating: false,
           design: persistedDesign,
-          metadata: _state.metadata.copyWith(
-            designId: generatedDesignId,
-            entityId: entityId,
-          ),
+          metadata: _state.metadata.copyWith(designId: generatedDesignId),
         ),
       );
+
+      try {
+        final entityId = await _designRepository.createDesign(
+          designId: generatedDesignId,
+          design: persistedDesign,
+        );
+
+        _setState(
+          _state.copyWith(
+            isCalculating: false,
+            metadata: _state.metadata.copyWith(entityId: entityId),
+          ),
+        );
+      } on ApiException catch (exception) {
+        _setState(
+          _state.copyWith(
+            isCalculating: false,
+            errorMessage:
+                'Calculated values are shown, but saving the design failed. '
+                '${exception.message}',
+          ),
+        );
+        return false;
+      }
       return true;
     } on ApiException catch (exception) {
       _setState(
@@ -652,7 +667,181 @@ class TwoWindingController extends ChangeNotifier {
     payload['outerWindings'] = outerWindings;
     payload['core'] = core;
     payload['lockedAttributes'] = lockedAttributes;
+    _sanitizeCalculatePayload(payload);
     return payload;
+  }
+
+  void _sanitizeCalculatePayload(Map<String, dynamic> payload) {
+    const numericPaths = <String>[
+      'kVA',
+      'lowVoltage',
+      'highVoltage',
+      'lvCurrentDensity',
+      'hvCurrentDensity',
+      'buildFactor',
+      'fluxDensity',
+      'frequency',
+      'tapStepsPercent',
+      'tapStepsPositive',
+      'tapStepsNegative',
+      'kValue',
+      'limitEz',
+      'ambientTemp',
+      'windingTemp',
+      'topOilTemp',
+      'radiatorWidth',
+      'core.coreDia',
+      'core.limbHt',
+      'core.cenDist',
+      'core.area',
+      'core.wkgGrade',
+      'core.wKgGrade',
+      'core.fluxDensity',
+      'core.coreWeight',
+      'tank.tankLength',
+      'tank.tankWidth',
+      'tank.tankHeight',
+      'tank.tankCapacity',
+      'tank.tankWallThickness',
+      'tank.tankLidThickness',
+      'tank.tankBottomThickness',
+      'tank.frameThickness',
+      'tank.tankLoss',
+      'tank.wdgToTankGap',
+      'tank.connectionGap',
+      'tank.topYokeToCoverGap',
+      'coilDimensions.coreDia',
+      'coilDimensions.coreGap',
+      'coilDimensions.lvid',
+      'coilDimensions.lVID',
+      'coilDimensions.lvradial',
+      'coilDimensions.lVRadial',
+      'coilDimensions.lvod',
+      'coilDimensions.lVOD',
+      'coilDimensions.lvhvgap',
+      'coilDimensions.lVHVGap',
+      'coilDimensions.hvid',
+      'coilDimensions.hVID',
+      'coilDimensions.hvradial',
+      'coilDimensions.hVRadial',
+      'coilDimensions.hvod',
+      'coilDimensions.hVOD',
+      'coilDimensions.hvhvgap',
+      'coilDimensions.hVHVGap',
+      'cost.copperCostPerKg',
+      'cost.aluminiumCostPerKg',
+      'cost.coreCostPerKg',
+      'cost.steelCostPerKg',
+      'cost.oilCostPerKg',
+      'cost.insulationCostPerKg',
+      'cost.radiatorCostPerKg',
+      'cost.totalCondCost',
+      'cost.totalCoreCost',
+      'cost.totalSteelCost',
+      'cost.totalOilCost',
+      'cost.totalInsCost',
+      'cost.totalRadiatorCost',
+      'cost.capitalCost',
+    ];
+
+    for (final path in numericPaths) {
+      _nullInvalidNumberAt(payload, path);
+    }
+
+    for (final section in ['innerWindings', 'outerWindings']) {
+      for (final field in _windingNumericFields) {
+        _nullInvalidNumberAt(payload, '$section.$field');
+      }
+      _nullInvalidBoolAt(payload, '$section.isConductorRound');
+      _nullInvalidBoolAt(payload, '$section.isEnamel');
+    }
+
+    for (final path in ['dryTempClass', 'lvTerminalType', 'hvTerminalType']) {
+      _nullEmptyStringAt(payload, path);
+    }
+  }
+
+  static const List<String> _windingNumericFields = <String>[
+    'turnsPerPhase',
+    'phaseCurrent',
+    'currentDensity',
+    'condCrossSec',
+    'condInsulation',
+    'windingLength',
+    'noOfLayers',
+    'turnsPerLayer',
+    'terminal',
+    'endClearances',
+    'eddyStrayLoss',
+    'tempGradDegC',
+    'ducts',
+    'ductSize',
+    'discDuctSize',
+    'insulatedWeight',
+    'bareWeight',
+    'loadLoss',
+    'commRawCond',
+    'interLayerInsulation',
+    'radialParallelCond',
+    'axialParallelCond',
+    'condBreadth',
+    'condHeight',
+    'conductorDiameter',
+  ];
+
+  void _nullInvalidNumberAt(Map<String, dynamic> payload, String path) {
+    final parent = _parentMapForPath(payload, path);
+    if (parent == null) {
+      return;
+    }
+    final key = path.split('.').last;
+    final value = parent[key];
+    if (value is String) {
+      final text = value.trim();
+      if (text.isEmpty || double.tryParse(text) == null) {
+        parent[key] = null;
+      }
+    }
+  }
+
+  void _nullEmptyStringAt(Map<String, dynamic> payload, String path) {
+    final parent = _parentMapForPath(payload, path);
+    if (parent == null) {
+      return;
+    }
+    final key = path.split('.').last;
+    final value = parent[key];
+    if (value is String && value.trim().isEmpty) {
+      parent[key] = null;
+    }
+  }
+
+  void _nullInvalidBoolAt(Map<String, dynamic> payload, String path) {
+    final parent = _parentMapForPath(payload, path);
+    if (parent == null) {
+      return;
+    }
+    final key = path.split('.').last;
+    final value = parent[key];
+    if (value is String && value.trim().isEmpty) {
+      parent[key] = null;
+    }
+  }
+
+  Map<String, dynamic>? _parentMapForPath(
+    Map<String, dynamic> payload,
+    String path,
+  ) {
+    final segments = path.split('.');
+    Object? current = payload;
+    for (final segment in segments.take(segments.length - 1)) {
+      if (current is Map<String, dynamic>) {
+        current = current[segment];
+      } else {
+        return null;
+      }
+    }
+    return current is Map<String, dynamic> ? current : null;
   }
 
   String _generateDesignId(TwoWindingDesign design) {

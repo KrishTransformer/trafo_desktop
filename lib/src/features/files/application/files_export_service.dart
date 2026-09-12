@@ -6,7 +6,11 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../design_workspace/domain/models/core_calculation_result.dart';
 import '../../design_workspace/domain/models/core_stack_step.dart';
+import '../../design_workspace/domain/models/two_winding_design.dart';
+import '../../fabrication/domain/models/fabrication_calculation_result.dart';
+import '../../multi_winding/domain/models/multi_winding_design.dart';
 import 'files_state.dart';
 
 enum FilesExportAction {
@@ -36,14 +40,17 @@ enum FilesExportAction {
 }
 
 abstract interface class FilesDocumentOpener {
-  Future<void> openPdf({required String fileName, required Uint8List bytes});
+  Future<void> openDocument({
+    required String fileName,
+    required Uint8List bytes,
+  });
 
   Future<void> openUrl(Uri uri);
 }
 
 class UrlLauncherFilesDocumentOpener implements FilesDocumentOpener {
   @override
-  Future<void> openPdf({
+  Future<void> openDocument({
     required String fileName,
     required Uint8List bytes,
   }) async {
@@ -99,8 +106,8 @@ class FilesExportService {
     }
 
     final fileName = _fileNameForAction(action: action, state: state);
-    final bytes = await _buildPdf(action: action, state: state);
-    await _opener.openPdf(fileName: fileName, bytes: bytes);
+    final bytes = await _buildDocumentBytes(action: action, state: state);
+    await _opener.openDocument(fileName: fileName, bytes: bytes);
   }
 
   Uri? hostedUriForAction({
@@ -145,36 +152,577 @@ class FilesExportService {
       FilesExportAction.lom => 'lom',
       _ => action.name,
     };
-    return '${designId}_$suffix.pdf';
+    const extension = 'pdf';
+    return '${designId}_$suffix.$extension';
   }
 
-  Future<Uint8List> _buildPdf({
+  Future<Uint8List> _buildDocumentBytes({
     required FilesExportAction action,
     required FilesState state,
   }) async {
     final document = pw.Document();
+
     final title = action.label;
 
-    document.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(28),
-        build: (context) => [
-          _buildHeader(title: title, state: state),
-          pw.SizedBox(height: 14),
-          ...switch (action) {
-            FilesExportAction.designPrintOut => _buildDesignPrintOut(state),
-            FilesExportAction.gtp => _buildGtp(state),
-            FilesExportAction.coreAssembly => _buildCoreAssembly(state),
-            FilesExportAction.coreBlade => _buildCoreBlade(state),
-            FilesExportAction.lom => _buildLom(state),
-            _ => const <pw.Widget>[],
-          },
-        ],
-      ),
-    );
+    if (action == FilesExportAction.designPrintOut) {
+      final theme = await _designPrintTheme();
+      document.addPage(
+        pw.MultiPage(
+          pageFormat: state.multiWindingDesign == null
+              ? PdfPageFormat.letter
+              : PdfPageFormat.letter.landscape,
+          margin: state.multiWindingDesign == null
+              ? const pw.EdgeInsets.all(36)
+              : const pw.EdgeInsets.all(30),
+          theme: theme,
+          build: (context) => state.multiWindingDesign == null
+              ? _buildDesignPrintOut(state)
+              : _buildMultiWindingDesignPrintOut(state),
+        ),
+      );
+    } else {
+      document.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(28),
+          build: (context) => [
+            _buildHeader(title: title, state: state),
+            pw.SizedBox(height: 14),
+            ...switch (action) {
+              FilesExportAction.designPrintOut => _buildDesignPrintOut(state),
+              FilesExportAction.gtp => _buildGtp(state),
+              FilesExportAction.coreAssembly => _buildCoreAssembly(state),
+              FilesExportAction.coreBlade => _buildCoreBlade(state),
+              FilesExportAction.lom => _buildLom(state),
+              _ => const <pw.Widget>[],
+            },
+          ],
+        ),
+      );
+    }
 
     return Uint8List.fromList(await document.save());
+  }
+
+  Future<pw.ThemeData> _designPrintTheme() async {
+    Future<pw.Font?> loadFont(String path) async {
+      final file = File(path);
+      if (!await file.exists()) {
+        return null;
+      }
+      final bytes = await file.readAsBytes();
+      return pw.Font.ttf(ByteData.sublistView(bytes));
+    }
+
+    final base = Platform.isWindows
+        ? await loadFont(r'C:\Windows\Fonts\arial.ttf')
+        : null;
+    final symbolFallback = Platform.isWindows
+        ? await loadFont(r'C:\Windows\Fonts\seguisym.ttf')
+        : null;
+    final fallbacks = <pw.Font>[?symbolFallback];
+
+    return pw.ThemeData.withFont(
+      base: base,
+      bold: base,
+      fontFallback: fallbacks,
+    );
+  }
+
+  List<pw.Widget> _buildDesignPrintOut(FilesState state) {
+    return [
+      _designTable(
+        [
+          [
+            'Customer Name: ${_blankIfMissing(state.customerName)}',
+            'First Line:',
+          ],
+          ['Place: ${_blankIfMissing(state.customerPlace)}', ''],
+          [
+            'Design Ref: ${_designReference(state)}',
+            'KVA: ${_blankIfMissing(state.twoWindingDesign?.readPath('kVA'))}',
+          ],
+        ],
+        const <double>[4765, 4590],
+      ),
+      _gap(),
+      _designTable(_coreRows(state), const <double>[2515, 2520, 2910, 2845]),
+      _gap(),
+      _windingDataBlock(state),
+      _gap(),
+      _designTable(_fabricationRowsForDesignPrint(state), const <double>[
+        2697,
+        2697,
+        2698,
+        2698,
+      ]),
+      _gap(),
+      _generalPerformanceBlock(state),
+      _gap(height: 3),
+      pw.Text('Tapping:', style: const pw.TextStyle(fontSize: 9)),
+      _designTable(_tappingRowsForDesignPrint(state), const <double>[
+        1975,
+        8815,
+      ]),
+      _gap(),
+      _designTable(
+        [
+          ['Date: ${_dateLabel()}', 'Designed By:', 'Verified By:'],
+        ],
+        const <double>[3596, 3597, 3597],
+      ),
+    ];
+  }
+
+  List<pw.Widget> _buildMultiWindingDesignPrintOut(FilesState state) {
+    final design = state.multiWindingDesign!;
+    return [
+      _designTable(
+        [
+          [
+            'Customer Name: ${_blankIfMissing(state.customerName)}',
+            'First Line:',
+          ],
+          ['Place: ${_blankIfMissing(state.customerPlace)}', ''],
+          [
+            'Design Ref: ${_designReference(state)}',
+            'KVA: ${_blankIfMissing(design.readPath('kVA'))}',
+          ],
+        ],
+        const <double>[4765, 4590],
+        tableWidth: _multiDesignPrintContentWidth,
+        fontSize: 7.5,
+        verticalPadding: 0.4,
+      ),
+      _gap(height: 1),
+      _designTable(
+        _multiCoreRows(design, state.coreResult),
+        const <double>[2515, 2520, 2910, 2845],
+        tableWidth: _multiDesignPrintContentWidth,
+        fontSize: 7.5,
+        verticalPadding: 0.4,
+      ),
+      _gap(height: 1),
+      _designTable(
+        _multiWindingRows(design),
+        const <double>[2136, 2396, 2206, 2184, 1950, 2184],
+        tableWidth: _multiDesignPrintContentWidth,
+        fontSize: 6.2,
+        horizontalPadding: 2,
+        verticalPadding: 0.15,
+      ),
+      _gap(height: 1),
+      pw.Text('Coil Dimensions:', style: const pw.TextStyle(fontSize: 7.5)),
+      _designTable(
+        _multiCoilDimensionRows(design),
+        const <double>[
+          1339,
+          1421,
+          1248,
+          1170,
+          1014,
+          1014,
+          1092,
+          1092,
+          1248,
+          1248,
+          1248,
+          1092,
+        ],
+        tableWidth: _multiDesignPrintContentWidth,
+        fontSize: 5.8,
+        horizontalPadding: 1.2,
+        verticalPadding: 0.2,
+      ),
+      _gap(height: 1),
+      pw.Text('TANK DETAILS', style: const pw.TextStyle(fontSize: 7.5)),
+      _designTable(
+        _multiFabricationRows(design, state.fabricationResult),
+        const <double>[2697, 2697, 2698, 2698],
+        tableWidth: _multiDesignPrintContentWidth,
+        fontSize: 7.0,
+        verticalPadding: 0.35,
+      ),
+      _gap(height: 1),
+      _multiGeneralPerformanceBlock(design),
+      _gap(height: 1),
+      pw.Text('Taps Description :', style: const pw.TextStyle(fontSize: 7.5)),
+      _designTable(
+        _multiTapRows(design),
+        const <double>[1975, 6001, 6419],
+        tableWidth: _multiDesignPrintContentWidth,
+        fontSize: 6.8,
+        verticalPadding: 0.25,
+      ),
+    ];
+  }
+
+  List<List<Object>> _multiCoreRows(
+    MultiWindingDesign design,
+    CoreCalculationResult? core,
+  ) {
+    return [
+      [
+        'Frame: ${_blankIfMissing(design.readPath('core.coreDia'))}',
+        'Core Factor: ${_multiValue(design, ['core.coreFactor', 'buildFactor'])}',
+        'Core Type: ${_blankIfMissing(design.readPath('core.coreType'))}',
+        'Grade: ${_multiValue(design, ['core.grade', 'core.wkgGrade', 'core.coreMaterial'])}',
+      ],
+      [
+        'Area: ${_blankIfMissing(_firstAvailable([core?.coreArea, design.readPath('core.area')]))}',
+        'Weight: ${_multiValue(design, ['core.coreWeight', 'tankAndOilFormulas.weightCore'], fallback: core?.coreWeight)}',
+        'Flux Density: ${_multiValue(design, ['revisedFluxDensity', 'fluxDensity'])}',
+        'Frequency: ${_blankIfMissing(design.readPath('frequency'))}',
+      ],
+      [
+        'Volts/Turn: ${_multiValue(design, ['performance.voltsPerTurn', 'revisedVoltsPerTurn'])}',
+        'Temperature: ${_blankIfMissing(design.readPath('windingTemp'))}',
+        'Cooling: ${_blankIfMissing(design.readPath('eRadiatorType'))}',
+        'Vector Group: ${_blankIfMissing(design.readPath('vectorGroup'))}',
+      ],
+    ];
+  }
+
+  List<List<Object>> _multiWindingRows(MultiWindingDesign design) {
+    final windingIds = _multiWindingIds;
+    List<Object> row(String label, String Function(String id) value) {
+      return [label, for (final id in windingIds) value(id)];
+    }
+
+    return [
+      [
+        'WINDING DATA',
+        '1.INNER',
+        '2. HV Winding',
+        '3. COARSE Winding',
+        '4. FINE2 Winding',
+        '5. OUTER Winding',
+      ],
+      row('Phase A / V', (id) => _multiWindingVoltage(design, id)),
+      row(
+        'Turns/Limb',
+        (id) => _multiWindingValue(design, id, 'turnsPerPhase'),
+      ),
+      row('Type of WDG', (id) => _multiWindingType(design, id)),
+      row('No.of Coils', (id) => _multiWindingValue(design, id, 'noOfCoils')),
+      row(
+        'Turns per Coil',
+        (id) => _multiWindingValue(design, id, 'turnsPerCoil'),
+      ),
+      row('Turns/Layer', (id) => _multiWindingValue(design, id, 'turnsLayers')),
+      row(
+        'INSLN - Layer',
+        (id) => _multiWindingValue(design, id, 'interLayerInsulation'),
+      ),
+      row('Oil Duct', (id) => _multiDuctLabel(design, id)),
+      row(
+        'Oil b/w Coils',
+        (id) => _multiWindingValue(design, id, 'discDuctSize'),
+      ),
+      row('Cond-Size + Paper Thick.', (id) {
+        final conductor = _multiConductorLabel(design, id);
+        final paper = _multiWindingValue(design, id, 'condInsulation');
+        if (conductor.isEmpty) return paper;
+        if (paper.isEmpty) return conductor;
+        return '$conductor + $paper';
+      }),
+      row('No.in Parallel', (id) => _multiParallelLabel(design, id)),
+      row(
+        'Cond. Cross-Section',
+        (id) => _multiWindingValue(design, id, 'condCrossSec'),
+      ),
+      row(
+        'Transposition',
+        (id) => _multiWindingValue(design, id, 'transposition'),
+      ),
+      row('Radial Thickness', (id) => _multiRadialValue(design, id)),
+      row(
+        'Winding Length',
+        (id) => _multiWindingValue(design, id, 'windingLength'),
+      ),
+      row('Current Density (A/mm²)', (id) {
+        return _blankIfMissing(
+          _readMulti(design, [
+            'part2Windings.$id.currentDensity',
+            _multiSpec(id).currentDensityPath,
+          ]),
+        );
+      }),
+      row(
+        'Turn Length (m)',
+        (id) => _multiWindingValue(design, id, 'turnLength'),
+      ),
+      row(
+        'Wire Length (m)',
+        (id) => _multiWindingValue(design, id, 'wireLength'),
+      ),
+      row('R @75°C Ohms/ph Nom', (id) => _multiWindingValue(design, id, 'r75')),
+      row('Weight bare/Cover (kg)', (id) {
+        return _blankIfMissing(
+          _readMulti(design, [
+            'part2Windings.$id.weightBareInsulated',
+            'multiCost.conductors.$id.weight',
+          ]),
+        );
+      }),
+      row(
+        'Stray Loss %',
+        (id) => _multiWindingValue(design, id, 'eddyStrayLoss'),
+      ),
+      row('Load Loss w', (id) => _multiWindingValue(design, id, 'loadLoss')),
+      row(
+        'Temperature Gradient °C',
+        (id) => _multiWindingValue(design, id, 'tempGradDegC'),
+      ),
+      row(
+        'End Clearances (mm)',
+        (id) => _multiWindingValue(design, id, 'endClearances'),
+      ),
+      row(
+        'Window Height (mm)',
+        (id) => _blankIfMissing(design.readPath('core.limbHt')),
+      ),
+      row('Ampere Turns', (id) => _multiAmpereTurnsLabel(design, id)),
+    ];
+  }
+
+  List<List<Object>> _multiCoilDimensionRows(MultiWindingDesign design) {
+    return [
+      [
+        'Diametrical',
+        'Core Dia',
+        'LV-ID',
+        'LV-OD',
+        'HV-ID',
+        'HV-OD',
+        'Coar-ID',
+        'Coar-OD',
+        'Fine2-ID',
+        'Fine2-OD',
+        'Outer-ID',
+        'Outer-OD',
+      ],
+      [
+        'Dia Dim',
+        _multiValue(design, ['coilDimensions.coreDia', 'core.coreDia']),
+        _multiValue(design, ['coilDimensions.lvid']),
+        _multiValue(design, ['coilDimensions.lvod']),
+        _multiValue(design, ['coilDimensions.hvid']),
+        _multiValue(design, ['coilDimensions.hvod']),
+        _multiValue(design, ['multiCoilDimensions.corse.id']),
+        _multiValue(design, ['multiCoilDimensions.corse.od']),
+        _multiValue(design, ['multiCoilDimensions.fine.id']),
+        _multiValue(design, ['multiCoilDimensions.fine.od']),
+        _multiValue(design, ['multiCoilDimensions.outer.id']),
+        _multiValue(design, ['multiCoilDimensions.outer.od']),
+      ],
+      const [''],
+      [
+        'Radial x 2',
+        '',
+        _multiValue(design, ['coilDimensions.lvradial']),
+        '',
+        _multiValue(design, ['coilDimensions.hvradial']),
+        '',
+        _multiValue(design, ['multiCoilDimensions.corse.radial']),
+        '',
+        _multiValue(design, ['multiCoilDimensions.fine.radial']),
+        '',
+        _multiValue(design, ['multiCoilDimensions.outer.radial']),
+        '',
+      ],
+      [
+        'Radial Clearances',
+        'Core-LV ${_multiValue(design, ['coilDimensions.coreGap'])}',
+        'LvRad ${_multiValue(design, ['coilDimensions.lvradial'])}',
+        'Lv-HV ${_multiValue(design, ['coilDimensions.lvhvgap'])}',
+        'HvRad ${_multiValue(design, ['coilDimensions.hvradial'])}',
+        'Hv-Crs ${_multiValue(design, ['multiCoilDimensions.gaps.hvMainToCorseGap'])}',
+        'CrsRad ${_multiValue(design, ['multiCoilDimensions.corse.radial'])}',
+        'Crs-Fin ${_multiValue(design, ['multiCoilDimensions.gaps.corseToFineGap'])}',
+        'FinRad ${_multiValue(design, ['multiCoilDimensions.fine.radial'])}',
+        'Fine-Out ${_multiValue(design, ['multiCoilDimensions.gaps.fineToOuterGap'])}',
+        'OutRad ${_multiValue(design, ['multiCoilDimensions.outer.radial'])}',
+        'LimbGap ${_multiValue(design, ['core.cenDist', 'coilDimensions.centerDistance'])}',
+      ],
+    ];
+  }
+
+  List<List<Object>> _multiFabricationRows(
+    MultiWindingDesign design,
+    FabricationCalculationResult? fabrication,
+  ) {
+    return [
+      [
+        'Side sheet: ${_multiValue(design, ['tank.tankWallThickness'], fallback: fabrication?.readPath('tank.sideSheet'))}',
+        'Bot. Sheet: ${_multiValue(design, ['tank.tankBottomThickness'], fallback: fabrication?.readPath('tank.bottomSheet'))}',
+        'Lid Sheet: ${_multiValue(design, ['tank.tankLidThickness'], fallback: fabrication?.readPath('lid.lid_Thick'))}',
+        'Frame: ${_multiValue(design, ['tank.frameThickness'])}',
+      ],
+      [
+        'Tank Size',
+        'Length: ${_multiValue(design, ['tank.tankLength'], fallback: fabrication?.readPath('tank.length'))}',
+        'Width: ${_multiValue(design, ['tank.tankWidth'], fallback: fabrication?.readPath('tank.width'))}',
+        'Height: ${_multiValue(design, ['tank.tankHeight'], fallback: fabrication?.readPath('tank.height'))}',
+      ],
+      [
+        'Radiator: ${_multiValue(design, ['tankAndOilFormulas.noOfRadiators'], fallback: fabrication?.readPath('radiator.radiator_Nos'))}',
+        'Length: ${_multiValue(design, ['tankAndOilFormulas.radiatorHeight'], fallback: fabrication?.readPath('radiator.radiator_CC'))}',
+        'Width: ${_multiValue(design, ['tankAndOilFormulas.radiatorWidth'], fallback: fabrication?.readPath('radiator.radiator_W'))}',
+        'Sections: ${_multiValue(design, ['tankAndOilFormulas.radiatorSection', 'tankAndOilFormulas.noOfFinsPerRadiator'], fallback: fabrication?.readPath('radiator.radiator_Fin_Nos'))}',
+      ],
+      [
+        'Conservator:',
+        'Dia: ${_multiValue(design, ['tankAndOilFormulas.conservatorDia'])}',
+        'Length: ${_multiValue(design, ['tankAndOilFormulas.conservatorLength'])}',
+        'Volume: ${_multiValue(design, ['tankAndOilFormulas.conservatorCapacity'], fallback: fabrication?.readPath('conservator.volume'))}',
+      ],
+    ];
+  }
+
+  pw.Widget _multiGeneralPerformanceBlock(MultiWindingDesign design) {
+    return _designTable(
+      [
+        [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _templateText('Generals', fontSize: 7),
+              _designTable(
+                [
+                  [
+                    _templateLines([
+                      'Weights',
+                      'Core & Wdg: ${_multiValue(design, ['tankAndOilFormulas.weightsOfActivePart'])}',
+                      'Tank & Fitting: ${_multiValue(design, ['tankAndOilFormulas.weightOfTankAndAcc'])}',
+                      'Oil: ${_multiValue(design, ['tankAndOilFormulas.oilWeight', 'tankAndOilFormulas.totalOil'])}',
+                      'Total: ${_multiValue(design, ['tankAndOilFormulas.transformerWeight'])}',
+                      'Over-all Dimensions: ${_multiValue(design, ['tank.overallDimension', 'tankAndOilFormulas.overallDimension'])}',
+                    ], fontSize: 6.8),
+                    _templateLines([
+                      'Cost (Total: ${_multiValue(design, ['cost.capitalCost'])})',
+                      'Oil: ${_multiValue(design, ['cost.totalOilCost'])}',
+                      'Cond: ${_multiValue(design, ['cost.totalCondCost'])}',
+                      'Core: ${_multiValue(design, ['cost.totalCoreCost'])}',
+                      'Insulation: ${_multiValue(design, ['cost.totalInsCost'])}',
+                      'Steel: ${_multiValue(design, ['cost.totalSteelCost'])}',
+                      'Radiators: ${_multiValue(design, ['cost.totalRadiatorCost'])}',
+                    ], fontSize: 6.8),
+                  ],
+                ],
+                const <double>[2584, 2585],
+                tableWidth: 344,
+                fontSize: 6.8,
+                horizontalPadding: 2,
+                verticalPadding: 0.2,
+              ),
+            ],
+          ),
+          _templateLines([
+            'Performance',
+            'No Load Loss: ${_multiValue(design, ['performance.noLoadLoss', 'coreLoss'])}',
+            'Load Loss: ${_multiValue(design, ['performance.loadLoss', 'loadLoss'])}',
+            'Tank Stray Loss: ${_multiValue(design, ['tank.tankLoss'])}',
+            'Resistance: ${_multiValue(design, ['performance.resistance'])}',
+            'Reactance: ${_multiValue(design, ['performance.reactance'])}',
+            'Impedance: ${_multiValue(design, ['performance.impedance', 'ez'])}',
+            'No Load Current (%): ${_multiValue(design, ['performance.nlCurrentPercentage'])}',
+          ], fontSize: 7),
+        ],
+      ],
+      const <double>[5395, 5395],
+      tableWidth: _multiDesignPrintContentWidth,
+      fontSize: 7,
+      horizontalPadding: 2,
+      verticalPadding: 0.35,
+    );
+  }
+
+  List<List<Object>> _multiTapRows(MultiWindingDesign design) {
+    return [
+      ['Tapping Details', _multiTapSummary(design), ''],
+      [
+        'HV Taps',
+        _multiValue(design, ['hvTaps', 'tapDetails.hv']),
+        '',
+      ],
+      [
+        'Corse Taps',
+        _multiValue(design, ['corseTaps', 'tapDetails.corse']),
+        '',
+      ],
+      [
+        'Fine Taps',
+        _multiValue(design, ['fineTaps', 'tapDetails.fine']),
+        '',
+      ],
+      [
+        'Edge Taps',
+        _multiValue(design, ['edgeTaps', 'tapDetails.edge']),
+        '',
+      ],
+      [
+        'Test Voltage',
+        'HV: ${_multiValue(design, ['hvTestVoltage'])}',
+        'LV: ${_multiValue(design, ['lvTestVoltage'])}',
+      ],
+    ];
+  }
+
+  List<_DesignPrintField> _performanceRows(FilesState state) {
+    final design = state.twoWindingDesign;
+    return [
+      _DesignPrintField(
+        'No Load Loss:',
+        _readDesign(design, ['hvFormulas.coreLoss', 'coreLoss']),
+      ),
+      _DesignPrintField(
+        'Load Loss:',
+        _readDesign(design, [
+          'hvFormulas.totalLoadLoss',
+          'lossesAt100Percent',
+          'loadLoss',
+        ]),
+      ),
+      _DesignPrintField(
+        'Tank Stray Loss:',
+        _readDesign(design, ['hvFormulas.tankLoss', 'tankLoss']),
+      ),
+      _DesignPrintField(
+        'Resistance:',
+        _readDesign(design, ['commonFormulas.er', 'resistance']),
+      ),
+      _DesignPrintField(
+        'Reactance:',
+        _readDesign(design, ['commonFormulas.ex', 'reactance']),
+      ),
+      _DesignPrintField(
+        'Impedance:',
+        _readDesign(design, ['commonFormulas.ek', 'ez']),
+      ),
+      _DesignPrintField(
+        'No Load Current (%):',
+        _readDesign(design, ['noLoadCurrent', 'commonFormulas.noLoadCurrent']),
+      ),
+    ];
+  }
+
+  String _tapSummary(Object? design) {
+    if (design is! TwoWindingDesign) {
+      return '-';
+    }
+
+    final positive = _display(design.readPath('tapStepsPositive'));
+    final negative = _display(design.readPath('tapStepsNegative'));
+    final percent = _display(design.readPath('tapStepsPercent'));
+    final turns = _display(_turnsPerTapValue(design));
+    final parts = <String>[
+      if (positive != '-' || negative != '-') '+$positive to -$negative',
+      if (percent != '-') '@ $percent%',
+      'HV',
+      if (turns != '-') '$turns Turns/Step',
+    ];
+    return parts.join(', ');
   }
 
   pw.Widget _buildHeader({required String title, required FilesState state}) {
@@ -229,61 +777,520 @@ class FilesExportService {
     );
   }
 
-  List<pw.Widget> _buildDesignPrintOut(FilesState state) {
-    final twoWinding = state.twoWindingDesign;
-    final fabrication = state.fabricationResult;
+  List<List<Object>> _coreRows(FilesState state) {
+    final design = state.twoWindingDesign;
     final core = state.coreResult;
-
     return [
-      _section(
-        'Design Summary',
-        _keyValueRows(<List<String>>[
-          ['Capacity (kVA)', _display(twoWinding?.readPath('kVA'))],
-          ['HV Voltage', _display(twoWinding?.readPath('highVoltage'))],
-          ['LV Voltage', _display(twoWinding?.readPath('lowVoltage'))],
-          ['Vector Group', twoWinding?.stringAt('vectorGroup') ?? '-'],
-          ['Frequency', _display(twoWinding?.readPath('frequency'))],
-          ['Impedance', _display(twoWinding?.readPath('ez'))],
-          ['Volts / Turn', _display(twoWinding?.readPath('voltsPerTurn'))],
-        ]),
-      ),
-      pw.SizedBox(height: 12),
-      _section(
-        'Core Summary',
-        _keyValueRows(<List<String>>[
-          ['Core Weight', _display(twoWinding?.readPath('core.coreWeight'))],
-          ['Core Area', _display(core?.coreArea)],
-          ['Designed Core Area', _display(core?.designedCoreArea)],
-          ['Core Diameter', _display(twoWinding?.readPath('core.coreDia'))],
-          ['Limb Height', _display(twoWinding?.readPath('core.limbHt'))],
-          ['Centre Distance', _display(twoWinding?.readPath('core.cenDist'))],
-        ]),
-      ),
-      pw.SizedBox(height: 12),
-      _section(
-        'Fabrication Summary',
-        _keyValueRows(<List<String>>[
-          ['Tank Length', _display(fabrication?.readPath('tank.length'))],
-          ['Tank Width', _display(fabrication?.readPath('tank.width'))],
-          ['Tank Height', _display(fabrication?.readPath('tank.height'))],
-          [
-            'Pressure Relief Valve',
-            _display(fabrication?.readPath('restOfVariables.prv')),
-          ],
-          ['Rollers', _display(fabrication?.readPath('roller.roller'))],
-          ['MOG', _display(fabrication?.readPath('mog.mog'))],
-        ]),
-      ),
-      pw.SizedBox(height: 12),
-      _section(
-        'LOM Cost',
-        _keyValueRows(<List<String>>[
-          ['Rows', '${state.displayRows.length}'],
-          ['Total Cost', _numberLabel(state.totalCost)],
-        ]),
-      ),
+      [
+        'Frame: ${_blankIfMissing(design?.readPath('core.coreDia'))}',
+        'Core Factor: ${_designValue(design, ['core.coreFactor', 'buildFactor'])}',
+        'Core Type: ${_blankIfMissing(design?.readPath('core.coreType'))}',
+        'Grade: ${_designValue(design, ['core.grade', 'core.wkgGrade', 'core.coreMaterial'])}',
+      ],
+      [
+        'Area: ${_blankIfMissing(_firstAvailable([core?.coreArea, design?.readPath('core.area')]))}',
+        'Weight: ${_designValue(design, ['core.coreWeight', 'hvFormulas.coreWeight'], fallback: core?.coreWeight)}',
+        'Flux Density: ${_designValue(design, ['core.fluxDensity', 'fluxDensity'])}',
+        'Frequency: ${_blankIfMissing(design?.readPath('frequency'))}',
+      ],
+      [
+        'Volts/Turn: ${_blankIfMissing(design?.readPath('voltsPerTurn'))}',
+        'Temperature: ${_blankIfMissing(design?.readPath('windingTemp'))}',
+        'Cooling: ${_blankIfMissing(design?.readPath('cooling'))}',
+        'Vector Group: ${_blankIfMissing(design?.readPath('vectorGroup'))}',
+      ],
     ];
   }
+
+  List<List<Object>> _fabricationRowsForDesignPrint(FilesState state) {
+    final fabrication = state.fabricationResult;
+    final design = state.twoWindingDesign;
+    return [
+      [
+        'Side sheet: ${_designValue(design, ['tank.tankWallThickness'], fallback: fabrication?.readPath('tank.sideSheet'))}',
+        'Bot. Sheet: ${_designValue(design, ['tank.tankBottomThickness'], fallback: fabrication?.readPath('tank.bottomSheet'))}',
+        'Lid Sheet: ${_designValue(design, ['tank.tankLidThickness'], fallback: fabrication?.readPath('lid.lid_Thick'))}',
+        'Frame: ${_designValue(design, ['tank.frameThickness', 'core.frame'])}',
+      ],
+      [
+        'Tank Size',
+        'Length: ${_designValue(design, ['tank.tankLength'], fallback: fabrication?.readPath('tank.length'))}',
+        'Width: ${_designValue(design, ['tank.tankWidth'], fallback: fabrication?.readPath('tank.width'))}',
+        'Height: ${_designValue(design, ['tank.tankHeight'], fallback: fabrication?.readPath('tank.height'))}',
+      ],
+      [
+        'Radiator: ${_designValue(design, ['tankAndOilFormulas.noOfRadiators'], fallback: fabrication?.readPath('radiator.radiator_Nos'))}',
+        'Length: ${_designValue(design, ['tankAndOilFormulas.radiatorHeight'], fallback: fabrication?.readPath('radiator.radiator_CC'))}',
+        'Width: ${_designValue(design, ['tankAndOilFormulas.radiatorWidth', 'radiatorWidth'], fallback: fabrication?.readPath('radiator.radiator_W'))}',
+        'Sections: ${_designValue(design, ['tankAndOilFormulas.noOfFinsPerRadiator'], fallback: fabrication?.readPath('radiator.radiator_Fin_Nos'))}',
+      ],
+      [
+        'Conservator:',
+        'Dia: ${_designValue(design, ['tankAndOilFormulas.conservatorDia', 'conservatorDia'])}',
+        'Length: ${_designValue(design, ['tankAndOilFormulas.conservatorLength', 'conservatorLength'])}',
+        'Volume: ${_designValue(design, ['tankAndOilFormulas.conservatorCapacity'], fallback: fabrication?.readPath('conservator.volume'))}',
+      ],
+    ];
+  }
+
+  pw.Widget _windingDataBlock(FilesState state) {
+    return _designTable(
+      [
+        [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _templateText('Winding Data:'),
+              _designTable(
+                _windingRowsForDesignPrint(state),
+                const <double>[1776, 2160, 2250],
+                tableWidth: 321,
+                fontSize: 7.8,
+                horizontalPadding: 2,
+                verticalPadding: 0.45,
+              ),
+            ],
+          ),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _templateLines([
+                'Coil Dimensions:',
+                'Core Dia: ${_designValue(state.twoWindingDesign, ['coilDimensions.coreDia', 'core.coreDia'])}',
+                'Core-LV gap: ${_designValue(state.twoWindingDesign, ['coilDimensions.coreGap', 'coreLVClr'])}',
+                'LV ID: ${_designValue(state.twoWindingDesign, ['coilDimensions.lvid', 'coilDimensions.lVID'])}',
+                'LV Rad. Thick.: ${_designValue(state.twoWindingDesign, ['coilDimensions.lvradial', 'coilDimensions.lVRadial'])}',
+                'LV OD: ${_designValue(state.twoWindingDesign, ['coilDimensions.lvod', 'coilDimensions.lVOD'])}',
+                'LV-HV gap: ${_designValue(state.twoWindingDesign, ['coilDimensions.lvhvgap', 'coilDimensions.lVHVGap', 'lVHVClr'])}',
+                'HV ID: ${_designValue(state.twoWindingDesign, ['coilDimensions.hvid', 'coilDimensions.hVID'])}',
+                'HV Rad. Thick.: ${_designValue(state.twoWindingDesign, ['coilDimensions.hvradial', 'coilDimensions.hVRadial'])}',
+                'HV OD: ${_designValue(state.twoWindingDesign, ['coilDimensions.hvod', 'coilDimensions.hVOD'])}',
+                'HV-HV gap: ${_designValue(state.twoWindingDesign, ['coilDimensions.hvhvgap', 'coilDimensions.hVHVGap', 'hVHVGap'])}',
+                'Cen. Dist.: ${_designValue(state.twoWindingDesign, ['core.cenDist', 'hvFormulas.centerDistance'])}',
+                'Active Part Size: ${_designValue(state.twoWindingDesign, ['coilDimensions.activePartSize', 'hvFormulas.activePartSize'])}',
+              ], fontSize: 7.8),
+              _templateLines([
+                'Impedance:',
+                'Ls: l, b, Kr --> ls',
+                'Δ’ : Δ + (h2 + h1)/3  Δ’',
+                'Ds: LvOd + Δ + (h2 - h1)/3  Ds',
+              ], fontSize: 7.5),
+              _designTable(
+                const [
+                  ['(H):', 'V/T:'],
+                ],
+                const <double>[1963, 1963],
+                tableWidth: 196,
+                fontSize: 7.5,
+                horizontalPadding: 2,
+                verticalPadding: 0.4,
+              ),
+              _templateLines([
+                'ex = (1.24 ∗ (H) ∗ Δ′ ∗ Ds ∗ 10−4) / (V/T ∗ ls)',
+                'er: ${_designValue(state.twoWindingDesign, ['commonFormulas.er', 'resistance'])}',
+                'ex: ${_designValue(state.twoWindingDesign, ['commonFormulas.ex', 'reactance'])}',
+                'ez: ${_designValue(state.twoWindingDesign, ['commonFormulas.ek', 'ez'])}',
+                'Insulation Clearances:',
+                'Insu. Core-LV: ${_designValue(state.twoWindingDesign, ['coreLVClr', 'coilDimensions.coreGap'])}',
+                'Insu. LV-HV: ${_designValue(state.twoWindingDesign, ['lVHVClr', 'coilDimensions.lvhvgap'])}',
+                'Insu. HV-HV: ${_designValue(state.twoWindingDesign, ['hVHVGap', 'coilDimensions.hvhvgap'])}',
+                'Tank Clearances:',
+                'Yoke- Cover: ${_designValue(state.twoWindingDesign, ['tank.topYokeToCoverGap', 'tankAndOilFormulas.topYokeCoverGap'])}',
+                'Wdg-Tank: ${_designValue(state.twoWindingDesign, ['tank.wdgToTankGap', 'tankAndOilFormulas.wdgTankGap'])}',
+                'Wdg-Leads: ${_designValue(state.twoWindingDesign, ['tank.connectionGap', 'tankAndOilFormulas.connectionGap'])}',
+              ], fontSize: 7.8),
+            ],
+          ),
+        ],
+      ],
+      const <double>[6412, 4388],
+      fontSize: 7.8,
+      horizontalPadding: 2,
+      verticalPadding: 1,
+    );
+  }
+
+  List<List<Object>> _windingRowsForDesignPrint(FilesState state) {
+    final design = state.twoWindingDesign;
+    Object? read(String path) => design?.readPath(path);
+    Object? first(List<Object?> values) => _firstAvailable(values);
+
+    return [
+      [
+        'Winding Type',
+        _blankIfMissing(read('lvWindingType')),
+        _blankIfMissing(read('hvWindingType')),
+      ],
+      [
+        'Voltage (V)',
+        _blankIfMissing(read('lowVoltage')),
+        _blankIfMissing(read('highVoltage')),
+      ],
+      [
+        'Current (A)',
+        _blankIfMissing(
+          first([
+            read('innerWindings.phaseCurrent'),
+            read('lvFormulas.lvCurrentPerPhase'),
+          ]),
+        ),
+        _blankIfMissing(
+          first([
+            read('outerWindings.phaseCurrent'),
+            read('hvFormulas.hvCurrentPerPhase'),
+          ]),
+        ),
+      ],
+      [
+        'No. of Limbs',
+        _blankIfMissing(read('lVLimbs')),
+        _blankIfMissing(read('hVLimbs')),
+      ],
+      [
+        'Turns/Limb',
+        _blankIfMissing(
+          first([
+            read('innerWindings.turnsPerPhase'),
+            read('lvFormulas.lvTurnsPerPhase'),
+          ]),
+        ),
+        _blankIfMissing(
+          first([
+            read('outerWindings.turnsPerPhase'),
+            read('hvFormulas.hvTurnsPerPhase'),
+          ]),
+        ),
+      ],
+      [
+        'Coils / Discs',
+        _blankIfMissing(read('lvFormulas.lvNoOfCoils')),
+        _blankIfMissing(
+          first([
+            read('hvFormulas.hvNoOfCoils'),
+            read('hvFormulas.hvNoOfDiscs'),
+          ]),
+        ),
+      ],
+      [
+        'Turns/Coil Disc',
+        _blankIfMissing(read('lvFormulas.lvTurnsPerCoil')),
+        _blankIfMissing(read('hvFormulas.hvTurnsPerCoil')),
+      ],
+      [
+        'No. of Layers ',
+        _blankIfMissing(read('innerWindings.noOfLayers')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.noOfLayers'),
+            read('hvFormulas.hvNumberOfLayers'),
+          ]),
+        ),
+      ],
+      [
+        'Turns/Layer',
+        _blankIfMissing(read('innerWindings.turnsLayers')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.turnsLayers'),
+            read('hvFormulas.hvTurnsPerLayer'),
+          ]),
+        ),
+      ],
+      [
+        'Insu. b/w layer',
+        _blankIfMissing(read('innerWindings.interLayerInsulation')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.interLayerInsulation'),
+            read('hvFormulas.hvInterLayerInsulation'),
+          ]),
+        ),
+      ],
+      [
+        'Oil Duct',
+        _ductLabel(design, 'innerWindings'),
+        _blankIfMissing(
+          first([
+            _ductLabel(design, 'outerWindings'),
+            read('hvFormulas.hvDiscDuctsSize'),
+            read('hvFormulas.hvDuctThickness'),
+          ]),
+        ),
+      ],
+      [
+        'Conductor',
+        _conductorLabel(design, 'innerWindings'),
+        _conductorLabel(design, 'outerWindings'),
+      ],
+      [
+        'Parallels',
+        _parallelLabel(design, 'innerWindings'),
+        _parallelLabel(design, 'outerWindings'),
+      ],
+      [
+        'Cond Cross Sec',
+        _blankIfMissing(read('innerWindings.condCrossSec')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.condCrossSec'),
+            read('hvFormulas.hvConductorCrossSection'),
+            read('hvFormulas.hvTotalCondCrossSection'),
+          ]),
+        ),
+      ],
+      [
+        'Current Dens.',
+        _blankIfMissing(
+          first([
+            read('innerWindings.currentDensity'),
+            read('lvCurrentDensity'),
+          ]),
+        ),
+        _blankIfMissing(
+          first([
+            read('outerWindings.currentDensity'),
+            read('hvCurrentDensity'),
+          ]),
+        ),
+      ],
+      [
+        'Radial Thick.',
+        _blankIfMissing(
+          first([
+            read('coilDimensions.lvradial'),
+            read('innerWindings.radialThickness'),
+          ]),
+        ),
+        _blankIfMissing(
+          first([
+            read('coilDimensions.hvradial'),
+            read('hvFormulas.hvRadialThickness'),
+          ]),
+        ),
+      ],
+      [
+        'Wire Length',
+        _blankIfMissing(read('innerWindings.wireLength')),
+        _blankIfMissing(read('hvFormulas.hvWireLength')),
+      ],
+      [
+        'Resist. @ 750C',
+        _blankIfMissing(read('innerWindings.r75')),
+        _blankIfMissing(read('hvFormulas.hvR75')),
+      ],
+      [
+        'Resist. @ 350C',
+        _blankIfMissing(read('innerWindings.r26')),
+        _blankIfMissing(read('hvFormulas.hvR26')),
+      ],
+      [
+        'Wt – Bare/Ins.',
+        _blankIfMissing(
+          first([
+            read('innerWindings.weightBareInsulated'),
+            read('lvFormulas.lvProcurementWeight'),
+          ]),
+        ),
+        _blankIfMissing(
+          first([
+            read('outerWindings.weightBareInsulated'),
+            read('hvFormulas.hvInsulatedWeight'),
+            read('hvFormulas.hvProcurementWeight'),
+          ]),
+        ),
+      ],
+      [
+        'Stray Loss',
+        _blankIfMissing(read('innerWindings.eddyStrayLoss')),
+        _blankIfMissing(read('hvFormulas.hvStrayLoss')),
+      ],
+      [
+        'Load Loss',
+        _blankIfMissing(read('innerWindings.loadLoss')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.loadLoss'),
+            read('hvFormulas.hvLoadLossAtNormal'),
+          ]),
+        ),
+      ],
+      [
+        'Gradient',
+        _blankIfMissing(read('innerWindings.tempGradDegC')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.tempGradDegC'),
+            read('hvFormulas.hvGradient'),
+          ]),
+        ),
+      ],
+      [
+        'Transpose',
+        _blankIfMissing(read('lvFormulas.lvTransposition')),
+        _blankIfMissing(read('hvFormulas.hvTransposition')),
+      ],
+      [
+        'Wdg Length',
+        _blankIfMissing(read('innerWindings.windingLength')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.windingLength'),
+            read('hvFormulas.hvWindingLength'),
+          ]),
+        ),
+      ],
+      [
+        'End Clearance',
+        _blankIfMissing(read('innerWindings.endClearances')),
+        _blankIfMissing(
+          first([
+            read('outerWindings.endClearances'),
+            read('hvFormulas.hvEndClearance'),
+          ]),
+        ),
+      ],
+      [
+        'Window Ht. ',
+        _blankIfMissing(read('core.limbHt')),
+        _blankIfMissing(read('core.limbHt')),
+      ],
+      [
+        'Ampere Turns',
+        _ampereTurnsLabel(design, 'innerWindings'),
+        _ampereTurnsLabel(design, 'outerWindings'),
+      ],
+      [
+        'Terminals',
+        _blankIfMissing(read('innerWindings.terminal')),
+        _blankIfMissing(read('outerWindings.terminal')),
+      ],
+    ];
+  }
+
+  pw.Widget _generalPerformanceBlock(FilesState state) {
+    final design = state.twoWindingDesign;
+    return _designTable(
+      [
+        [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _templateText('Generals'),
+              _designTable(
+                [
+                  [
+                    _templateLines([
+                      'Weights',
+                      'Core & Wdg: ${_designValue(design, ['tankAndOilFormulas.weightsOfActivePart', 'coreAndWindingWeight'])}',
+                      'Tank & Fitting: ${_blankIfMissing(design?.readPath('tankAndOilFormulas.weightOfTankAndAcc'))}',
+                      'Oil: ${_designValue(design, ['tankAndOilFormulas.oilWeight', 'tankAndOilFormulas.totalOil'])}',
+                      'Total: ${_designValue(design, ['tankAndOilFormulas.transformerWeight', 'tankAndOilFormulas.totalWeight', 'totalWeight'])}',
+                      'Over-all Dimensions: ${_blankIfMissing(design?.readPath('tankAndOilFormulas.overallDimension'))}',
+                    ], fontSize: 8),
+                    _templateLines([
+                      'Cost (Total: ${_blankIfMissing(design?.readPath('cost.capitalCost'))})',
+                      'Oil: ${_blankIfMissing(design?.readPath('cost.totalOilCost'))}',
+                      'Cond: ${_blankIfMissing(design?.readPath('cost.totalCondCost'))}',
+                      'Core: ${_blankIfMissing(design?.readPath('cost.totalCoreCost'))}',
+                      'Insulation: ${_blankIfMissing(design?.readPath('cost.totalInsCost'))}',
+                      'Steel: ${_blankIfMissing(design?.readPath('cost.totalSteelCost'))}',
+                      'Radiators: ${_blankIfMissing(design?.readPath('cost.totalRadiatorCost'))}',
+                    ], fontSize: 8),
+                  ],
+                ],
+                const <double>[2584, 2585],
+                tableWidth: 258,
+                fontSize: 8,
+                horizontalPadding: 2,
+                verticalPadding: 0.8,
+              ),
+            ],
+          ),
+          _templateLines([
+            'Performance',
+            ..._performanceRows(state).map((field) {
+              return '${field.label} ${_blankIfMissing(field.value)}';
+            }),
+          ], fontSize: 8.2),
+        ],
+      ],
+      const <double>[5395, 5395],
+      fontSize: 8.2,
+      horizontalPadding: 2,
+      verticalPadding: 1,
+    );
+  }
+
+  List<List<Object>> _tappingRowsForDesignPrint(FilesState state) {
+    final design = state.twoWindingDesign;
+    return [
+      ['Taps: ', _tapSummary(design)],
+      [
+        'Turns:',
+        '${_blankIfMissing(_turnsPerTapValue(design))} - HV Tapping turns.',
+      ],
+    ];
+  }
+
+  pw.Widget _designTable(
+    List<List<Object>> rows,
+    List<double> twipWidths, {
+    double tableWidth = _designPrintContentWidth,
+    double fontSize = 8.5,
+    double horizontalPadding = 3,
+    double verticalPadding = 1,
+  }) {
+    final total = twipWidths.fold<double>(0, (sum, width) => sum + width);
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+      columnWidths: <int, pw.TableColumnWidth>{
+        for (var index = 0; index < twipWidths.length; index++)
+          index: pw.FixedColumnWidth(tableWidth * twipWidths[index] / total),
+      },
+      children: rows
+          .map((row) {
+            return pw.TableRow(
+              children: row
+                  .map((cell) {
+                    return pw.Container(
+                      padding: pw.EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: verticalPadding,
+                      ),
+                      alignment: pw.Alignment.topLeft,
+                      child: cell is pw.Widget
+                          ? cell
+                          : _templateText(cell.toString(), fontSize: fontSize),
+                    );
+                  })
+                  .toList(growable: false),
+            );
+          })
+          .toList(growable: false),
+    );
+  }
+
+  pw.Widget _templateLines(List<String> lines, {double fontSize = 8.5}) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: lines
+          .map((line) {
+            return _templateText(line, fontSize: fontSize);
+          })
+          .toList(growable: false),
+    );
+  }
+
+  pw.Widget _templateText(String text, {double fontSize = 8.5}) {
+    return pw.Text(
+      text,
+      style: pw.TextStyle(fontSize: fontSize, lineSpacing: 0.5),
+      maxLines: 3,
+      softWrap: true,
+    );
+  }
+
+  pw.Widget _gap({double height = 2}) => pw.SizedBox(height: height);
 
   List<pw.Widget> _buildGtp(FilesState state) {
     final twoWinding = state.twoWindingDesign;
@@ -472,13 +1479,307 @@ class FilesExportService {
   }
 
   String _display(Object? value) {
-    final label = value?.toString().trim() ?? '';
+    final label = _valueText(value);
     return label.isEmpty ? '-' : label;
+  }
+
+  String _blankIfMissing(Object? value) {
+    return _valueText(value);
   }
 
   String _numberLabel(num value) {
     final isWhole = value == value.roundToDouble();
     return isWhole ? value.toInt().toString() : value.toStringAsFixed(2);
+  }
+
+  Object? _firstAvailable(List<Object?> values) {
+    for (final value in values) {
+      final label = _valueText(value);
+      if (label.isNotEmpty) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  Object? _readDesign(
+    TwoWindingDesign? design,
+    List<String> paths, {
+    Object? fallback,
+  }) {
+    if (design == null) {
+      return fallback;
+    }
+    return _firstAvailable([
+          for (final path in paths) design.readPath(path),
+          fallback,
+        ]) ??
+        fallback;
+  }
+
+  String _designValue(
+    TwoWindingDesign? design,
+    List<String> paths, {
+    Object? fallback,
+  }) {
+    return _blankIfMissing(_readDesign(design, paths, fallback: fallback));
+  }
+
+  Object? _readMulti(
+    MultiWindingDesign? design,
+    List<String> paths, {
+    Object? fallback,
+  }) {
+    if (design == null) {
+      return fallback;
+    }
+    return _firstAvailable([
+          for (final path in paths) design.readPath(path),
+          fallback,
+        ]) ??
+        fallback;
+  }
+
+  String _multiValue(
+    MultiWindingDesign? design,
+    List<String> paths, {
+    Object? fallback,
+  }) {
+    return _blankIfMissing(_readMulti(design, paths, fallback: fallback));
+  }
+
+  String _multiWindingVoltage(MultiWindingDesign design, String id) {
+    return _blankIfMissing(
+      _readMulti(design, [
+        _multiSpec(id).voltagePath,
+        'part2Windings.$id.voltage',
+      ]),
+    );
+  }
+
+  String _multiWindingType(MultiWindingDesign design, String id) {
+    return _blankIfMissing(design.readPath(_multiSpec(id).typePath));
+  }
+
+  String _multiWindingValue(
+    MultiWindingDesign design,
+    String id,
+    String field,
+  ) {
+    return _blankIfMissing(design.readPath('part2Windings.$id.$field'));
+  }
+
+  String _multiConductorLabel(MultiWindingDesign design, String id) {
+    final saved = _multiWindingValue(design, id, 'conductorSizes');
+    if (saved.isNotEmpty) {
+      return saved;
+    }
+    final isRound = _isTruthy(
+      design.readPath('part2Windings.$id.isConductorRound'),
+    );
+    if (isRound) {
+      return _multiWindingValue(design, id, 'conductorDiameter');
+    }
+    final breadth = _multiWindingValue(design, id, 'condBreadth');
+    final height = _multiWindingValue(design, id, 'condHeight');
+    if (breadth.isEmpty && height.isEmpty) {
+      return '';
+    }
+    return '$breadth x $height'.trim();
+  }
+
+  String _multiParallelLabel(MultiWindingDesign design, String id) {
+    final saved = _multiWindingValue(design, id, 'noInParallel');
+    if (saved.isNotEmpty) {
+      return saved;
+    }
+    final radial = _multiWindingValue(design, id, 'radialParallelCond');
+    final axial = _multiWindingValue(design, id, 'axialParallelCond');
+    return [radial, axial].where((value) => value.isNotEmpty).join(' x ');
+  }
+
+  String _multiDuctLabel(MultiWindingDesign design, String id) {
+    final ducts = _multiWindingValue(design, id, 'ducts');
+    final ductSize = _multiWindingValue(design, id, 'ductSize');
+    if (ducts.isEmpty && ductSize.isEmpty) {
+      return _multiWindingValue(design, id, 'noOfDuctsWidth');
+    }
+    if (ducts.isEmpty) return ductSize;
+    if (ductSize.isEmpty) return ducts;
+    return '$ducts / $ductSize';
+  }
+
+  String _multiRadialValue(MultiWindingDesign design, String id) {
+    final spec = _multiSpec(id);
+    return _blankIfMissing(design.readPath(spec.dimensionPath('radial')));
+  }
+
+  String _multiAmpereTurnsLabel(MultiWindingDesign design, String id) {
+    final existing = _multiWindingValue(design, id, 'ampereTurns');
+    if (existing.isNotEmpty) {
+      return existing;
+    }
+    final turns = _toDouble(design.readPath('part2Windings.$id.turnsPerPhase'));
+    final current = _toDouble(
+      design.readPath('part2Windings.$id.phaseCurrent'),
+    );
+    if (turns == null || current == null) {
+      return '';
+    }
+    return _numberLabel(turns * current);
+  }
+
+  String _multiTapSummary(MultiWindingDesign design) {
+    final positive = _display(design.readPath('tapStepsPositive'));
+    final negative = _display(design.readPath('tapStepsNegative'));
+    final percent = _display(design.readPath('tapStepsPercent'));
+    final parts = <String>[
+      if (positive != '-' || negative != '-') '+$positive to -$negative',
+      if (percent != '-') '@ $percent%',
+      if (_isTruthy(design.readPath('isOLTC'))) 'OLTC' else 'OCTC',
+    ];
+    return parts.join(', ');
+  }
+
+  _MultiPrintWindingSpec _multiSpec(String id) {
+    return _multiPrintWindingSpecs.firstWhere(
+      (spec) => spec.id == id,
+      orElse: () => _multiPrintWindingSpecs.first,
+    );
+  }
+
+  String _conductorLabel(TwoWindingDesign? design, String prefix) {
+    final saved = _readDesign(design, ['$prefix.conductorSizes']);
+    if (_valueText(saved).isNotEmpty) {
+      return _valueText(saved);
+    }
+
+    final isRound = design?.boolAt('$prefix.isConductorRound') ?? false;
+    if (isRound) {
+      return _blankIfMissing(design?.readPath('$prefix.conductorDiameter'));
+    }
+
+    final breadth = _blankIfMissing(
+      _readDesign(design, [
+        '$prefix.condBreadth',
+        if (prefix == 'outerWindings') 'hvFormulas.hvBreadth',
+      ]),
+    );
+    final height = _blankIfMissing(
+      _readDesign(design, [
+        '$prefix.condHeight',
+        if (prefix == 'outerWindings') 'hvFormulas.hvHeight',
+      ]),
+    );
+
+    if (breadth.isEmpty && height.isEmpty) {
+      return '';
+    }
+    return '$breadth x $height'.trim();
+  }
+
+  String _parallelLabel(TwoWindingDesign? design, String prefix) {
+    final radial = _blankIfMissing(
+      _readDesign(design, [
+        '$prefix.radialParallelCond',
+        if (prefix == 'outerWindings') 'hvFormulas.hvRadialParallelConductors',
+      ]),
+    );
+    final axial = _blankIfMissing(
+      _readDesign(design, [
+        '$prefix.axialParallelCond',
+        if (prefix == 'outerWindings') 'hvFormulas.hvAxialParallelConductors',
+      ]),
+    );
+    final combined = [
+      radial,
+      axial,
+    ].where((value) => value.isNotEmpty).join(' x ');
+    if (combined.isNotEmpty) {
+      return combined;
+    }
+    return _blankIfMissing(design?.readPath('$prefix.noInParallel'));
+  }
+
+  String _ductLabel(TwoWindingDesign? design, String prefix) {
+    final ducts = _blankIfMissing(design?.readPath('$prefix.ducts'));
+    final ductSize = _blankIfMissing(design?.readPath('$prefix.ductSize'));
+    if (ducts.isEmpty && ductSize.isEmpty) {
+      return _blankIfMissing(
+        _readDesign(design, [
+          '$prefix.noOfDuctsWidth',
+          if (prefix == 'outerWindings') 'hvFormulas.hvNoOfDuct',
+        ]),
+      );
+    }
+    if (ducts.isEmpty) {
+      return ductSize;
+    }
+    if (ductSize.isEmpty) {
+      return ducts;
+    }
+    return '$ducts / $ductSize';
+  }
+
+  String _ampereTurnsLabel(TwoWindingDesign? design, String prefix) {
+    final existing = _blankIfMissing(design?.readPath('$prefix.ampereTurns'));
+    if (existing.isNotEmpty) {
+      return existing;
+    }
+
+    final turns = _toDouble(design?.readPath('$prefix.turnsPerPhase'));
+    final current = _toDouble(design?.readPath('$prefix.phaseCurrent'));
+    if (turns == null || current == null) {
+      return '';
+    }
+    return _numberLabel(turns * current);
+  }
+
+  Object? _turnsPerTapValue(TwoWindingDesign? design) {
+    return _readDesign(design, [
+      'turnsPerTap',
+      'hvFormulas.hvTurnsPerTap',
+      'hvFormulas.turnsPerTap',
+    ]);
+  }
+
+  double? _toDouble(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    return double.tryParse(_valueText(value));
+  }
+
+  bool _isTruthy(Object? value) {
+    return switch (value) {
+      true => true,
+      false || null => false,
+      String() => value.trim().isNotEmpty && value.toLowerCase() != 'false',
+      num() => value != 0,
+      _ => true,
+    };
+  }
+
+  String _valueText(Object? value) {
+    if (value == null) {
+      return '';
+    }
+    if (value is Iterable) {
+      return value
+          .map(_valueText)
+          .where((entry) => entry.isNotEmpty)
+          .join(', ');
+    }
+    if (value is Map) {
+      return '';
+    }
+    return value.toString().trim();
+  }
+
+  String _dateLabel() {
+    final now = DateTime.now();
+    String pad(int value) => value.toString().padLeft(2, '0');
+    return '${pad(now.day)}-${pad(now.month)}-${now.year}';
   }
 
   String _timestampLabel() {
@@ -488,3 +1789,79 @@ class FilesExportService {
         '${pad(now.hour)}:${pad(now.minute)}';
   }
 }
+
+class _DesignPrintField {
+  const _DesignPrintField(this.label, this.value);
+
+  final String label;
+  final Object? value;
+}
+
+class _MultiPrintWindingSpec {
+  const _MultiPrintWindingSpec({
+    required this.id,
+    required this.voltagePath,
+    required this.typePath,
+    required this.currentDensityPath,
+  });
+
+  final String id;
+  final String voltagePath;
+  final String typePath;
+  final String currentDensityPath;
+
+  String dimensionPath(String dimension) => switch ((id, dimension)) {
+    ('lv', 'id') => 'coilDimensions.lvid',
+    ('lv', 'radial') => 'coilDimensions.lvradial',
+    ('lv', 'od') => 'coilDimensions.lvod',
+    ('hvMain', 'id') => 'coilDimensions.hvid',
+    ('hvMain', 'radial') => 'coilDimensions.hvradial',
+    ('hvMain', 'od') => 'coilDimensions.hvod',
+    (_, _) => 'multiCoilDimensions.$id.$dimension',
+  };
+}
+
+const List<String> _multiWindingIds = <String>[
+  'lv',
+  'hvMain',
+  'corse',
+  'fine',
+  'outer',
+];
+
+const List<_MultiPrintWindingSpec> _multiPrintWindingSpecs =
+    <_MultiPrintWindingSpec>[
+      _MultiPrintWindingSpec(
+        id: 'lv',
+        voltagePath: 'primaryVoltage',
+        typePath: 'lvWindingType',
+        currentDensityPath: 'lvCurrentDensity',
+      ),
+      _MultiPrintWindingSpec(
+        id: 'hvMain',
+        voltagePath: 'secondaryVoltage',
+        typePath: 'hvWindingType',
+        currentDensityPath: 'hvCurrentDensity',
+      ),
+      _MultiPrintWindingSpec(
+        id: 'corse',
+        voltagePath: 'corseVoltage',
+        typePath: 'corseWindingType',
+        currentDensityPath: 'corseCurrentDensity',
+      ),
+      _MultiPrintWindingSpec(
+        id: 'fine',
+        voltagePath: 'fineVoltage',
+        typePath: 'fineWindingType',
+        currentDensityPath: 'fineCurrentDensity',
+      ),
+      _MultiPrintWindingSpec(
+        id: 'outer',
+        voltagePath: 'outerVoltage',
+        typePath: 'outerWindingType',
+        currentDensityPath: 'outerCurrentDensity',
+      ),
+    ];
+
+const double _designPrintContentWidth = 540;
+const double _multiDesignPrintContentWidth = 720;

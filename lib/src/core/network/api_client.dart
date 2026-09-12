@@ -36,11 +36,13 @@ class ApiClient {
     );
     for (final client in clients.values) {
       client.interceptors.add(BearerTokenInterceptor(tokenStorage));
-      client.interceptors.add(SessionRefreshInterceptor(
-        client: client,
-        tokenRefreshService: refreshService,
-        onRefreshFailure: onUnauthorized ?? (() async {}),
-      ));
+      client.interceptors.add(
+        SessionRefreshInterceptor(
+          client: client,
+          tokenRefreshService: refreshService,
+          onRefreshFailure: onUnauthorized ?? (() async {}),
+        ),
+      );
     }
     _clients = clients;
   }
@@ -55,6 +57,7 @@ class ApiClient {
     required JsonDecoder<T> decoder,
     Map<String, dynamic>? queryParameters,
     Map<String, Object?>? headers,
+    ResponseType? responseType,
   }) {
     return _request(
       service: service,
@@ -63,6 +66,7 @@ class ApiClient {
       decoder: decoder,
       queryParameters: queryParameters,
       headers: headers,
+      responseType: responseType,
     );
   }
 
@@ -73,6 +77,7 @@ class ApiClient {
     Object? data,
     Map<String, dynamic>? queryParameters,
     Map<String, Object?>? headers,
+    ResponseType? responseType,
   }) {
     return _request(
       service: service,
@@ -82,6 +87,7 @@ class ApiClient {
       data: data,
       queryParameters: queryParameters,
       headers: headers,
+      responseType: responseType,
     );
   }
 
@@ -92,6 +98,7 @@ class ApiClient {
     Object? data,
     Map<String, dynamic>? queryParameters,
     Map<String, Object?>? headers,
+    ResponseType? responseType,
   }) {
     return _request(
       service: service,
@@ -101,6 +108,7 @@ class ApiClient {
       data: data,
       queryParameters: queryParameters,
       headers: headers,
+      responseType: responseType,
     );
   }
 
@@ -111,6 +119,7 @@ class ApiClient {
     Object? data,
     Map<String, dynamic>? queryParameters,
     Map<String, Object?>? headers,
+    ResponseType? responseType,
   }) {
     return _request(
       service: service,
@@ -120,6 +129,7 @@ class ApiClient {
       data: data,
       queryParameters: queryParameters,
       headers: headers,
+      responseType: responseType,
     );
   }
 
@@ -131,13 +141,18 @@ class ApiClient {
     Object? data,
     Map<String, dynamic>? queryParameters,
     Map<String, Object?>? headers,
+    ResponseType? responseType,
   }) async {
     try {
       final response = await clientFor(service).request<dynamic>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(method: method, headers: headers),
+        options: Options(
+          method: method,
+          headers: headers,
+          responseType: responseType,
+        ),
       );
 
       return decoder(response.data);

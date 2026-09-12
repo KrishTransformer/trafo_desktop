@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_scope.dart';
+import '../../../app/shell/desktop_navigation_shell.dart';
 import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
@@ -45,6 +46,7 @@ class _FilesScreenState extends State<FilesScreen> {
   final TextEditingController _rateController = TextEditingController();
   String _searchQuery = '';
   bool _showAddItemForm = false;
+  String _lastRememberedLomSignature = '';
 
   @override
   void didChangeDependencies() {
@@ -95,6 +97,8 @@ class _FilesScreenState extends State<FilesScreen> {
       return;
     }
 
+    _rememberGeneratedLom(controller.state);
+
     final errorMessage = controller.state.errorMessage;
     if (errorMessage.isEmpty || errorMessage == _lastErrorMessage) {
       return;
@@ -110,6 +114,40 @@ class _FilesScreenState extends State<FilesScreen> {
       _controller?.clearErrorMessage();
       _lastErrorMessage = '';
     });
+  }
+
+  void _rememberGeneratedLom(FilesState state) {
+    if (state.entityId.isEmpty || state.lomItems.isEmpty) {
+      return;
+    }
+
+    final signature =
+        '${state.entityId}:${state.lomItems.length}:${identityHashCode(state.lomItems)}';
+    if (signature == _lastRememberedLomSignature) {
+      return;
+    }
+
+    final base =
+        DesignNavigationMemory.summaryFor(state.entityId) ??
+        widget.initialDesignSummary;
+    DesignNavigationMemory.rememberSummary(
+      DesignSummary(
+        id: state.entityId,
+        designId: state.designId.isNotEmpty
+            ? state.designId
+            : base?.designId ?? state.entityId,
+        designType: base?.designType ?? 'two',
+        twoWindings: state.twoWindingDesign?.toJson() ?? base?.twoWindings,
+        multiWindings: base?.multiWindings,
+        core: state.coreResult?.toJson() ?? base?.core,
+        fabrication: state.fabricationResult?.toJson() ?? base?.fabrication,
+        lom: state.lomItems.map((item) => item.toJson()).toList(),
+        createdAt: base?.createdAt,
+        updatedAt: base?.updatedAt,
+        ownerId: base?.ownerId,
+      ),
+    );
+    _lastRememberedLomSignature = signature;
   }
 
   void _addCustomItem() {

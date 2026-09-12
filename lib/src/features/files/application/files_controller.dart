@@ -42,6 +42,9 @@ class FilesController extends ChangeNotifier {
       return;
     }
 
+    final multiWindingDesign = _readMultiWindingDesign(
+      initialSummary?.multiWindings,
+    );
     final twoWindingDesign = _readFilesDesign(initialSummary);
     final fabricationResult = _readFabrication(initialSummary?.fabrication);
     final coreResult = _readCoreResult(initialSummary?.core);
@@ -55,6 +58,7 @@ class FilesController extends ChangeNotifier {
             twoWindingDesign?.stringAt('designId') ??
             '',
         twoWindingDesign: twoWindingDesign,
+        multiWindingDesign: multiWindingDesign,
         fabricationResult: fabricationResult,
         coreResult: coreResult,
         errorMessage: '',
@@ -509,6 +513,11 @@ class FilesController extends ChangeNotifier {
   TwoWindingDesign? _readTwoWindingDesign(Object? raw) {
     final json = _readJsonMap(raw);
     return json == null ? null : TwoWindingDesign.fromJson(json);
+  }
+
+  MultiWindingDesign? _readMultiWindingDesign(Object? raw) {
+    final json = _readJsonMap(raw);
+    return json == null ? null : MultiWindingDesign.fromJson(json);
   }
 
   TwoWindingDesign? _readFilesDesign(DesignSummary? summary) {
