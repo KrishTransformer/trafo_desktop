@@ -22,6 +22,8 @@ class CoreCalculationResult {
 
   Object? get designedCoreArea => _json['designedCoreArea'];
 
+  String get bladeType => stringAt('eCoreBladeType', fallback: 'CRUSI_3');
+
   List<CoreStackStep> get bldStacks {
     final rawValue = _json['bldStacks'];
     if (rawValue is! List<dynamic>) {
@@ -60,6 +62,18 @@ class CoreCalculationResult {
       String() => value,
       _ => value.toString(),
     };
+  }
+
+  List<List<Object?>> tableAt(String path) {
+    final rawValue = readPath(path);
+    if (rawValue is! List<dynamic>) {
+      return const <List<Object?>>[];
+    }
+
+    return rawValue
+        .whereType<List>()
+        .map((row) => List<Object?>.from(row))
+        .toList(growable: false);
   }
 
   String toDebugJson() => const JsonEncoder.withIndent('  ').convert(_json);

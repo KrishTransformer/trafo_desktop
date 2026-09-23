@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../app/shell/desktop_navigation_shell.dart';
+import '../../../core/presentation/app_radii.dart';
 import '../../../core/presentation/app_form_styles.dart';
 import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
@@ -1734,41 +1735,160 @@ class _TabStrip extends StatelessWidget {
   }
 }
 
-Widget _textField({
-  required String label,
-  required String value,
-  required ValueChanged<String>? onChanged,
-}) {
-  return SizedBox(
-    width: 168,
-    height: AppFormStyles.controlHeight,
-    child: Builder(
-      builder: (context) => TextFormField(
-        key: ValueKey<String>('fabrication-field-$label-$value'),
-        initialValue: value,
-        onChanged: onChanged,
-        style: AppFormStyles.controlTextStyle(context),
-        decoration: AppFormStyles.decoration(context, labelText: label),
-      ),
+const _fabricationControlHeight = 30.0;
+const _fabricationControlFontSize = 12.0;
+
+TextStyle? _fabricationControlTextStyle(BuildContext context) {
+  final theme = Theme.of(context);
+  return theme.textTheme.bodySmall?.copyWith(
+    fontSize: _fabricationControlFontSize,
+    height: 1.0,
+    color: theme.colorScheme.onSurface,
+  );
+}
+
+Widget _fabricationFieldLabel(BuildContext context, String label) {
+  if (label.isEmpty) {
+    return const SizedBox.shrink();
+  }
+
+  return Text(
+    label,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      height: 1.1,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
     ),
   );
 }
 
-Widget _readOnlyField({required String label, required String value}) {
-  return SizedBox(
-    width: 168,
-    height: AppFormStyles.controlHeight,
-    child: Builder(
-      builder: (context) => TextFormField(
-        key: ValueKey<String>('fabrication-readonly-$label-$value'),
-        initialValue: value,
-        enabled: false,
-        style: AppFormStyles.controlTextStyle(context),
-        decoration: AppFormStyles.decoration(context, labelText: label),
-      ),
+InputDecoration _fabricationDecoration(BuildContext context) {
+  final theme = Theme.of(context);
+  final border = OutlineInputBorder(
+    borderRadius: AppRadii.compact,
+    borderSide: BorderSide(color: theme.colorScheme.outline),
+  );
+
+  return InputDecoration(
+    hintStyle: theme.textTheme.bodySmall?.copyWith(
+      fontSize: _fabricationControlFontSize,
+      height: 1.0,
+      color: theme.colorScheme.onSurfaceVariant,
     ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 5),
+    constraints: const BoxConstraints.tightFor(
+      height: _fabricationControlHeight,
+    ),
+    filled: true,
+    fillColor: theme.colorScheme.surfaceContainerHighest,
+    border: border,
+    enabledBorder: border,
+    disabledBorder: border,
+    focusedBorder: OutlineInputBorder(
+      borderRadius: AppRadii.compact,
+      borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.2),
+    ),
+    isDense: false,
   );
 }
+
+class _FabricationLabeledInput extends StatefulWidget {
+  const _FabricationLabeledInput({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.readOnly = false,
+    super.key,
+  });
+
+  final String label;
+  final String value;
+  final ValueChanged<String>? onChanged;
+  final bool readOnly;
+
+  @override
+  State<_FabricationLabeledInput> createState() =>
+      _FabricationLabeledInputState();
+}
+
+class _FabricationLabeledInputState extends State<_FabricationLabeledInput> {
+  late final TextEditingController _text = TextEditingController(
+    text: widget.value,
+  );
+
+  @override
+  void didUpdateWidget(_FabricationLabeledInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_text.text != widget.value) {
+      final offset = _text.selection.baseOffset.clamp(0, widget.value.length);
+      _text.value = TextEditingValue(
+        text: widget.value,
+        selection: TextSelection.collapsed(offset: offset),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (widget.label.isNotEmpty) ...[
+        _fabricationFieldLabel(context, widget.label),
+        const SizedBox(height: 3),
+      ],
+      SizedBox(
+        height: _fabricationControlHeight,
+        child: Semantics(
+          label: widget.label,
+          child: TextFormField(
+            controller: _text,
+            textAlignVertical: TextAlignVertical.center,
+            readOnly: widget.readOnly || widget.onChanged == null,
+            onChanged: widget.onChanged,
+            style: _fabricationControlTextStyle(context),
+            decoration: _fabricationDecoration(context),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _textField({
+  required String label,
+  required String value,
+  required ValueChanged<String>? onChanged,
+}) => SizedBox(
+  width: 168,
+  child: _FabricationLabeledInput(
+    key: ValueKey<String>('fabrication-field-$label'),
+    label: label,
+    value: value,
+    onChanged: onChanged,
+  ),
+);
+
+Widget _readOnlyField({required String label, required String value}) =>
+    SizedBox(
+      width: 168,
+      child: _FabricationLabeledInput(
+        key: ValueKey<String>('fabrication-readonly-$label'),
+        label: label,
+        value: value,
+        onChanged: null,
+        readOnly: true,
+      ),
+    );
 
 Widget _dropdownField(
   BuildContext context, {
@@ -1781,30 +1901,54 @@ Widget _dropdownField(
 
   return SizedBox(
     width: 168,
-    height: AppFormStyles.controlHeight,
-    child: DropdownButtonFormField<String>(
-      key: ValueKey<String>('fabrication-dropdown-$label-$effectiveValue'),
-      initialValue: effectiveValue,
-      isExpanded: true,
-      style: AppFormStyles.controlTextStyle(context),
-      decoration: AppFormStyles.decoration(context, labelText: label),
-      items: items
-          .map(
-            (item) => DropdownMenuItem<String>(
-              value: item,
-              child: Text(
-                item,
-                overflow: TextOverflow.ellipsis,
-                style: AppFormStyles.controlTextStyle(context),
+    child: Semantics(
+      label: label,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (label.isNotEmpty) ...[
+            _fabricationFieldLabel(context, label),
+            const SizedBox(height: 3),
+          ],
+          SizedBox(
+            height: _fabricationControlHeight,
+            child: DropdownButtonFormField<String>(
+              key: ValueKey<String>(
+                'fabrication-dropdown-$label-$effectiveValue',
               ),
+              initialValue: effectiveValue,
+              isExpanded: true,
+              iconEnabledColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              style: _fabricationControlTextStyle(context)?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: _fabricationDecoration(context),
+              items: items
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(
+                        item,
+                        overflow: TextOverflow.ellipsis,
+                        style: _fabricationControlTextStyle(context)?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value != null) {
+                  onChanged(value);
+                }
+              },
             ),
-          )
-          .toList(growable: false),
-      onChanged: (value) {
-        if (value != null) {
-          onChanged(value);
-        }
-      },
+          ),
+        ],
+      ),
     ),
   );
 }

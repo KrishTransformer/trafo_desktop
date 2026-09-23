@@ -37,17 +37,39 @@ class HttpFabricationCadRepository implements FabricationCadRepository {
             '/models/$designId.glb',
             options: Options(
               responseType: ResponseType.bytes,
-              headers: const <String, Object?>{'X-Skip-Auth': true},
+              headers: const <String, Object?>{
+                'Accept': 'model/gltf-binary, application/octet-stream',
+                'X-Skip-Auth': 'true',
+              },
             ),
           );
 
-      return StoredCadModel(
-        bytes: response.data == null
-            ? Uint8List(0)
-            : Uint8List.fromList(response.data!),
-      );
+      final bytes = response.data == null
+          ? Uint8List(0)
+          : Uint8List.fromList(response.data!);
+      if (!_isGlb(bytes)) {
+        throw ApiException(
+          type: ApiExceptionType.badResponse,
+          message: 'The downloaded 3D model is not a valid GLB file.',
+          statusCode: response.statusCode,
+          uri: response.realUri,
+          responseData: bytes.isEmpty ? null : bytes.take(32).toList(),
+        );
+      }
+
+      return StoredCadModel(bytes: bytes);
+    } on ApiException {
+      rethrow;
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
+  }
+
+  static bool _isGlb(Uint8List bytes) {
+    return bytes.length >= 4 &&
+        bytes[0] == 0x67 &&
+        bytes[1] == 0x6C &&
+        bytes[2] == 0x54 &&
+        bytes[3] == 0x46;
   }
 }

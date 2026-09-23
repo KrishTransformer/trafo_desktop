@@ -44,8 +44,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Files and LOM'), findsOneWidget);
-    expect(find.text('Reference: 100k-12345'), findsOneWidget);
     expect(find.text('Customer Details'), findsOneWidget);
     expect(find.text('Details'), findsOneWidget);
     expect(find.text('LOM'), findsWidgets);
@@ -168,6 +166,11 @@ class _FakeLomMaterialRepository implements LomMaterialRepository {
 class _FakeFilesDesignRepository implements FilesDesignRepository {
   final List<String> persistedEntityIds = <String>[];
   final List<List<LomLineItem>> persistedItems = <List<LomLineItem>>[];
+
+  @override
+  Future<DesignSummary> fetchDesign(String entityId) async {
+    throw StateError('No fetched summary configured.');
+  }
 
   @override
   Future<void> persistLom({

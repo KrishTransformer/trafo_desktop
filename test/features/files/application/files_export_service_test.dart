@@ -22,7 +22,7 @@ void main() {
     await service.exportAction(action: FilesExportAction.tank, state: state);
 
     expect(opener.openedUrls, <String>[
-      'https://transformer.treffertech.com/000_delivery/'
+      'https://design.trafointel.com/000_delivery/'
           '100k-12345/100k-12345_Tank_GAD.pdf',
     ]);
     expect(opener.openedDocuments, isEmpty);
@@ -102,10 +102,29 @@ void main() {
     expect(
       opener.openedUrls,
       contains(
-        'https://transformer.treffertech.com/000_delivery/'
+        'https://design.trafointel.com/000_delivery/'
         '100k-12345/100k-12345_Rating_plate.pdf',
       ),
     );
+  });
+
+  test('hosted delivery base URI can be overridden', () async {
+    final opener = _RecordingOpener();
+    final service = FilesExportService(
+      opener: opener,
+      deliveryBaseUri: Uri.parse('https://example.test/base/path?ignored=yes'),
+    );
+    final state = _sampleState();
+
+    await service.exportAction(
+      action: FilesExportAction.activePart,
+      state: state,
+    );
+
+    expect(opener.openedUrls, <String>[
+      'https://example.test/000_delivery/'
+          '100k-12345/100k-12345_ActivePart_GAD.pdf',
+    ]);
   });
 }
 

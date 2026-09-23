@@ -64,6 +64,7 @@ dev_dependencies:
 flutter:
 
   assets:
+    - assets/core_preview/
     - assets/vendor/model-viewer.min.js
 
   fonts:

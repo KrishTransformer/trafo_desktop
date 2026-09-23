@@ -146,6 +146,23 @@ void main() {
     },
   );
 
+  test('fetchDesign reads the saved design entity by id', () async {
+    commonAdapter.nextResponseBody = <String, dynamic>{
+      'id': 'entity-15',
+      'designId': '100k-59340',
+      'twoWindings': '{"designId":"100k-59340"}',
+      'fabrication': '{"hvcb":{"hvcb":false}}',
+    };
+
+    final response = await designRepository.fetchDesign('entity-15');
+
+    expect(commonAdapter.lastOptions?.method, 'GET');
+    expect(commonAdapter.lastOptions?.path, '/entity/design/entity-15');
+    expect(response.id, 'entity-15');
+    expect(response.designId, '100k-59340');
+    expect(response.fabrication, isNotNull);
+  });
+
   test(
     'persistLom updates the existing design entity with serialized lom JSON',
     () async {

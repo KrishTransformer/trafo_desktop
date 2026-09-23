@@ -99,6 +99,37 @@ void main() {
     expect(request['lomQuantity'], containsPair('lvConductor', 60));
   });
 
+  test('initialize fetches full design when route summary is incomplete', () async {
+    final lomRepository = _FakeFilesLomRepository();
+    final designRepository = _FakeFilesDesignRepository(
+      fetchedSummary: const DesignSummary(
+        id: 'entity-fetch',
+        designId: '100k-fetch',
+        twoWindings:
+            '{"designId":"100k-fetch","vectorGroup":"Dyn11","isOLTC":false,"isCSP":false,"core":{"coreWeight":880},"hvFormulas":{"hvProcurementWeight":45},"lvFormulas":{"lvProcurementWeight":55},"tankAndOilFormulas":{"hvConnectionWeight":12,"lvConnectionWeight":14,"insulationWeight":18,"totalOil":320,"weightOfTankAndAcc":900,"totalRadiatorWeight":410,"channelWeight":22}}',
+        fabrication:
+            '{"hvcb":{"hvcb":false},"lvcb":{"lvcb":true},"drain_Vlv":{"drain_Vlv":true,"drain_Vlv_Nos":2},"fill_Vlv":{"fill_Vlv":true,"fill_Vlv_Nos":1},"smpl_Vlv":{"smpl_Vlv":false,"smpl_Vlv_Nos":0},"mog":{"mog":true},"roller":{"roller":true},"cons":{"cons_Olg_Nos":1},"restOfVariables":{"prv":true}}',
+      ),
+    );
+    final controller = FilesController(
+      routeId: 'entity-fetch',
+      lomRepository: lomRepository,
+      lomMaterialRepository: _FakeLomMaterialRepository(),
+      designRepository: designRepository,
+    );
+
+    await controller.initialize(
+      initialSummary: const DesignSummary(
+        id: 'entity-fetch',
+        designId: '100k-fetch',
+      ),
+    );
+
+    expect(designRepository.fetchedEntityIds, <String>['entity-fetch']);
+    expect(controller.state.hasGenerationContext, isTrue);
+    expect(lomRepository.requests, hasLength(1));
+  });
+
   test(
     'updateRate on a generated row stores an override and re-fetches the lom',
     () async {
@@ -342,8 +373,22 @@ class _FailingLomMaterialRepository implements LomMaterialRepository {
 }
 
 class _FakeFilesDesignRepository implements FilesDesignRepository {
+  _FakeFilesDesignRepository({this.fetchedSummary});
+
+  final DesignSummary? fetchedSummary;
+  final List<String> fetchedEntityIds = <String>[];
   final List<String> persistedEntityIds = <String>[];
   final List<List<LomLineItem>> persistedItems = <List<LomLineItem>>[];
+
+  @override
+  Future<DesignSummary> fetchDesign(String entityId) async {
+    fetchedEntityIds.add(entityId);
+    final summary = fetchedSummary;
+    if (summary == null) {
+      throw StateError('No fetched summary configured.');
+    }
+    return summary;
+  }
 
   @override
   Future<void> persistLom({

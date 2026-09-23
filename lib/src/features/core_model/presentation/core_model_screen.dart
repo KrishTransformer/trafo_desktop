@@ -10,8 +10,11 @@ import '../../../core/presentation/app_error_dialog.dart';
 import '../../../core/presentation/loading_overlay.dart';
 import '../../design_workspace/data/repositories/http_core_calculation_repository.dart';
 import '../../design_workspace/data/repositories/http_core_design_repository.dart';
+import '../../design_workspace/domain/models/core_calculation_result.dart';
 import '../../design_workspace/domain/models/core_stack_step.dart';
+import '../../design_workspace/domain/models/two_winding_design.dart';
 import '../../home/domain/models/design_summary.dart';
+import '../../multi_winding/domain/models/multi_winding_design.dart';
 import '../application/core_model_controller.dart';
 import '../application/core_model_state.dart';
 
@@ -676,93 +679,420 @@ class _ActionRow extends StatelessWidget {
     await showDialog<void>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Core Print Preview'),
-          content: SizedBox(
-            width: 760,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SummaryRow(
-                    label: 'Design Ref.',
-                    value: state.designId.isEmpty
-                        ? state.entityId
-                        : state.designId,
-                  ),
-                  _SummaryRow(
-                    label: 'Gross Core Area',
-                    value: '${controller.displayValue(result.coreArea)} sqmm',
-                  ),
-                  _SummaryRow(
-                    label: 'Total Weight',
-                    value: '${controller.displayValue(result.coreWeight)} kg',
-                  ),
-                  _SummaryRow(
-                    label: 'Designed Core Area',
-                    value:
-                        '${controller.displayValue(result.designedCoreArea)} sqmm',
-                  ),
-                  _SummaryRow(
-                    label: 'Flux Density',
-                    value:
-                        '${controller.displayValue(controller.revisedFluxDensityText())} T',
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Stacking',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Table(
-                    border: TableBorder.all(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                    columnWidths: const {
-                      0: FlexColumnWidth(),
-                      1: FlexColumnWidth(),
-                      2: FlexColumnWidth(),
-                    },
-                    children: [
-                      const TableRow(
+        final size = MediaQuery.sizeOf(context);
+        return Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          child: SizedBox(
+            width: size.width * 0.9,
+            height: size.height * 0.92,
+            child: _CorePrintPreview(
+              controller: controller,
+              state: state,
+              onClose: () => Navigator.of(context).pop(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CorePrintPreview extends StatelessWidget {
+  const _CorePrintPreview({
+    required this.controller,
+    required this.state,
+    required this.onClose,
+  });
+
+  final CoreModelController controller;
+  final CoreModelState state;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _CorePreviewData(
+      controller: controller,
+      state: state,
+      result: state.result!,
+    );
+    final theme = Theme.of(context);
+
+    return ColoredBox(
+      color: theme.colorScheme.surface,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 10, 0),
+            child: Row(
+              children: [
+                const Expanded(child: SizedBox.shrink()),
+                IconButton(
+                  tooltip: 'Close',
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 5, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _PreviewHeader(data: data),
+                    const SizedBox(height: 30),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
+                      child: Column(
                         children: [
-                          _PreviewCell(text: 'Step No', isHeader: true),
-                          _PreviewCell(text: 'Width', isHeader: true),
-                          _PreviewCell(text: 'Stack', isHeader: true),
+                          for (final section in data.sections) ...[
+                            _PreviewStackingSection(section: section),
+                            const SizedBox(height: 30),
+                          ],
+                          Text(
+                            'Total Weight: ${data.totalWeightText} kg',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                       ),
-                      for (final step in result.bldStacks)
-                        TableRow(
-                          children: [
-                            _PreviewCell(
-                              text: controller.displayValue(step.stepNo),
-                            ),
-                            _PreviewCell(
-                              text: controller.displayValue(step.width),
-                            ),
-                            _PreviewCell(
-                              text: controller.displayValue(step.stack),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewHeader extends StatelessWidget {
+  const _PreviewHeader({required this.data});
+
+  final _CorePreviewData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'CORE Details for Transformer',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Voltage : ${data.voltagePrimary}V / ${data.voltageSecondary}V,    Frequency : ${data.frequency}Hz',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Core Size : ${data.coreSize},    kVA : ${data.kva}',
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewStackingSection extends StatelessWidget {
+  const _PreviewStackingSection({required this.section});
+
+  final _PreviewSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 760;
+        final image = _PreviewImage(assetPath: section.assetPath);
+        final table = _PreviewTable(section: section);
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: 320, child: image),
+              const SizedBox(height: 20),
+              table,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: constraints.maxWidth * 0.22,
+              height: 430,
+              child: image,
+            ),
+            const SizedBox(width: 30),
+            Expanded(child: table),
           ],
         );
       },
     );
   }
+}
+
+class _PreviewImage extends StatelessWidget {
+  const _PreviewImage({required this.assetPath});
+
+  final String assetPath;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+          child: const Center(child: Icon(Icons.image_not_supported_outlined)),
+        );
+      },
+    );
+  }
+}
+
+class _PreviewTable extends StatelessWidget {
+  const _PreviewTable({required this.section});
+
+  final _PreviewSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final visibleRows = section.rows
+        .where((row) => row.any((cell) => _cellText(cell).trim().isNotEmpty))
+        .toList(growable: false);
+
+    return Table(
+      border: TableBorder.all(color: theme.colorScheme.outlineVariant),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      columnWidths: {
+        for (var index = 0; index < section.headers.length; index++)
+          index: const FlexColumnWidth(),
+      },
+      children: [
+        TableRow(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+          ),
+          children: [
+            for (final header in section.headers)
+              _PreviewCell(text: header, isHeader: true),
+          ],
+        ),
+        for (var index = 0; index < visibleRows.length; index++)
+          TableRow(
+            decoration: BoxDecoration(
+              color: index.isEven
+                  ? theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.35,
+                    )
+                  : theme.colorScheme.surface,
+            ),
+            children: [
+              for (final cell in _cellsForRow(visibleRows[index]))
+                _PreviewCell(text: _cellText(cell)),
+            ],
+          ),
+        TableRow(
+          decoration: BoxDecoration(color: theme.colorScheme.primaryContainer),
+          children: [
+            _PreviewCell(
+              text: 'Grand Total = ${section.totalWeight.toStringAsFixed(2)}',
+              isHeader: true,
+              alignment: TextAlign.right,
+            ),
+            for (var index = 1; index < section.headers.length; index++)
+              const _PreviewCell(text: '', isHeader: true),
+          ],
+        ),
+      ],
+    );
+  }
+
+  List<Object?> _cellsForRow(List<Object?> row) {
+    return <Object?>[
+      for (var index = 0; index < section.headers.length; index++)
+        index < row.length ? row[index] : '',
+    ];
+  }
+
+  String _cellText(Object? value) => value?.toString() ?? '';
+}
+
+class _CorePreviewData {
+  _CorePreviewData({
+    required CoreModelController controller,
+    required CoreModelState state,
+    required CoreCalculationResult result,
+  }) {
+    final design = _PreviewDesign(state);
+    voltagePrimary = design.firstText(<String>['primaryVoltage', 'lowVoltage']);
+    voltageSecondary = design.firstText(<String>[
+      'secondaryVoltage',
+      'highVoltage',
+    ]);
+    frequency = design.firstText(<String>['frequency']);
+    kva = design.firstText(<String>['kVA']);
+    coreSize = <String>[
+      design.firstText(<String>['core.coreDia']),
+      design.firstText(<String>['core.limbHt']),
+      design.firstText(<String>[
+        'core.cenDist',
+        'coilDimensions.centerDistance',
+      ]),
+    ].where((value) => value.isNotEmpty && value != '-').join(' / ');
+    if (coreSize.isEmpty) {
+      coreSize = '-';
+    }
+
+    final bladeType = result.bladeType.isEmpty
+        ? state.request.eCoreBladeType
+        : result.bladeType;
+    final isFourBlade = bladeType == 'CRUSI_4' || bladeType == 'BLADE_4';
+    final isThreeBlade = bladeType == 'CRUSI_3' || bladeType == 'BLADE_3';
+    final weightIndex = bladeType == 'CRUSI_3' ? 5 : 4;
+    final headers = bladeType == 'CRUSI_3'
+        ? const <String>[
+            'Step\nNo.',
+            'Len A\nmm',
+            'Len B\nmm',
+            'Width\nmm',
+            'Stack\nmm',
+            'Weight\nkg',
+          ]
+        : const <String>[
+            'Step\nNo.',
+            'Length\nmm',
+            'Width\nmm',
+            'Stack\nmm',
+            'Weight\nkg',
+          ];
+
+    final sectionInputs = <({String path, String asset})>[
+      (
+        path: 'centerLimbStacking',
+        asset: isFourBlade
+            ? 'assets/core_preview/core4.1.png'
+            : 'assets/core_preview/core1.png',
+      ),
+      (
+        path: isThreeBlade ? 'yokeStacking' : 'sideLimbStacking',
+        asset: isFourBlade
+            ? 'assets/core_preview/core4.2.png'
+            : 'assets/core_preview/core2.png',
+      ),
+      (
+        path: isThreeBlade ? 'sideLimbStacking' : 'doubleNotchStacking',
+        asset: isFourBlade
+            ? 'assets/core_preview/core4.3.png'
+            : 'assets/core_preview/core3.png',
+      ),
+      if (isFourBlade)
+        (path: 'singleNotchStacking', asset: 'assets/core_preview/core4.4.png'),
+    ];
+
+    sections = sectionInputs
+        .map((input) {
+          final rows = result.tableAt(input.path);
+          return _PreviewSection(
+            assetPath: input.asset,
+            headers: headers,
+            rows: rows,
+            totalWeight: _totalWeight(rows, weightIndex),
+          );
+        })
+        .toList(growable: false);
+
+    final totalWeight = sections.fold<double>(
+      0,
+      (sum, section) => sum + section.totalWeight,
+    );
+    totalWeightText = totalWeight == 0
+        ? controller.displayValue(result.coreWeight, fallback: '0')
+        : totalWeight.toStringAsFixed(2);
+  }
+
+  late final String voltagePrimary;
+  late final String voltageSecondary;
+  late final String frequency;
+  late final String kva;
+  late final String coreSize;
+  late final List<_PreviewSection> sections;
+  late final String totalWeightText;
+
+  double _totalWeight(List<List<Object?>> rows, int weightIndex) {
+    return rows.fold<double>(0, (sum, row) {
+      if (weightIndex >= row.length) {
+        return sum;
+      }
+      return sum + (double.tryParse(row[weightIndex]?.toString() ?? '') ?? 0);
+    });
+  }
+}
+
+class _PreviewDesign {
+  const _PreviewDesign(this.state);
+
+  final CoreModelState state;
+
+  String firstText(List<String> paths) {
+    for (final path in paths) {
+      final value =
+          _readTwo(state.twoWindingDesign, path) ??
+          _readMulti(state.multiWindingDesign, path);
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+    return '-';
+  }
+
+  Object? _readTwo(TwoWindingDesign? design, String path) =>
+      design?.readPath(path);
+
+  Object? _readMulti(MultiWindingDesign? design, String path) =>
+      design?.readPath(path);
+}
+
+class _PreviewSection {
+  const _PreviewSection({
+    required this.assetPath,
+    required this.headers,
+    required this.rows,
+    required this.totalWeight,
+  });
+
+  final String assetPath;
+  final List<String> headers;
+  final List<List<Object?>> rows;
+  final double totalWeight;
 }
 
 class _CoreModelEmptyState extends StatelessWidget {
@@ -1012,10 +1342,15 @@ class _EmptyPanel extends StatelessWidget {
 }
 
 class _PreviewCell extends StatelessWidget {
-  const _PreviewCell({required this.text, this.isHeader = false});
+  const _PreviewCell({
+    required this.text,
+    this.isHeader = false,
+    this.alignment = TextAlign.left,
+  });
 
   final String text;
   final bool isHeader;
+  final TextAlign alignment;
 
   @override
   Widget build(BuildContext context) {
@@ -1023,6 +1358,7 @@ class _PreviewCell extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       child: Text(
         text,
+        textAlign: alignment,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           fontWeight: isHeader ? FontWeight.w700 : FontWeight.w500,
         ),

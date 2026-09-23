@@ -114,16 +114,56 @@ class _GlbModelViewerState extends State<GlbModelViewer> {
   <script type="module" src="model-viewer.min.js"></script>
   <style>
     html, body, model-viewer { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #f7f7f8; }
+    model-viewer { display: block; }
     model-viewer { --poster-color: #f7f7f8; }
+    #status {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #3f3f46;
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-align: center;
+      pointer-events: none;
+    }
+    #status[hidden] { display: none; }
   </style>
 </head>
 <body>
   <model-viewer id="viewer" src="model.glb" alt="Fabrication 3D model" camera-controls interaction-prompt="none" shadow-intensity="1" exposure="1.1"></model-viewer>
+  <div id="status">Loading 3D model...</div>
   <script>
     const viewer = document.getElementById('viewer');
+    const status = document.getElementById('status');
     const post = (type, message) => window.chrome?.webview?.postMessage({ type, message });
-    viewer.addEventListener('load', () => post('loaded', ''));
-    viewer.addEventListener('error', (event) => post('error', event.detail?.message || 'The model file is invalid or could not be read.'));
+    const fail = (message) => {
+      status.hidden = false;
+      status.textContent = message;
+      post('error', message);
+    };
+
+    window.addEventListener('error', (event) => {
+      fail(event.message || 'The model viewer script could not be loaded.');
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      fail(event.reason?.message || String(event.reason || 'The model viewer could not start.'));
+    });
+    customElements.whenDefined('model-viewer').catch(() => {
+      fail('The model viewer component could not be initialized.');
+    });
+
+    viewer.addEventListener('progress', (event) => {
+      const progress = Math.round((event.detail?.totalProgress || 0) * 100);
+      status.textContent = progress > 0 ? `Loading 3D model... \${progress}%` : 'Loading 3D model...';
+    });
+    viewer.addEventListener('load', () => {
+      status.hidden = true;
+      post('loaded', '');
+    });
+    viewer.addEventListener('error', (event) => {
+      fail(event.detail?.message || 'The model file is invalid or could not be read.');
+    });
   </script>
 </body>
 </html>''';

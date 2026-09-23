@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:trafo_desktop/src/core/config/app_environment.dart';
 import 'package:trafo_desktop/src/core/network/api_client.dart';
+import 'package:trafo_desktop/src/core/network/api_exception.dart';
 import 'package:trafo_desktop/src/core/network/api_service.dart';
 import 'package:trafo_desktop/src/core/storage/token_storage.dart';
 import 'package:trafo_desktop/src/features/fabrication/data/repositories/http_drawings_status_repository.dart';
@@ -132,14 +133,48 @@ void main() {
   });
 
   test('loadModel requests the glb blob from storage with skip-auth', () async {
-    storageAdapter.nextResponseBytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
+    storageAdapter.nextResponseBytes = Uint8List.fromList(<int>[
+      0x67,
+      0x6C,
+      0x54,
+      0x46,
+      1,
+      2,
+      3,
+      4,
+    ]);
 
     final response = await cadRepository.loadModel('100k-12345');
 
     expect(storageAdapter.lastOptions?.method, 'GET');
     expect(storageAdapter.lastOptions?.path, '/models/100k-12345.glb');
-    expect(storageAdapter.lastOptions?.headers['X-Skip-Auth'], true);
-    expect(response.bytes, Uint8List.fromList(<int>[1, 2, 3, 4]));
+    expect(
+      storageAdapter.lastOptions?.headers.containsKey('X-Skip-Auth'),
+      isFalse,
+    );
+    expect(
+      storageAdapter.lastOptions?.headers.containsKey('Authorization'),
+      isFalse,
+    );
+    expect(
+      response.bytes,
+      Uint8List.fromList(<int>[0x67, 0x6C, 0x54, 0x46, 1, 2, 3, 4]),
+    );
+  });
+
+  test('loadModel rejects non-glb storage responses', () async {
+    storageAdapter.nextResponseBytes = Uint8List.fromList(utf8.encode('oops'));
+
+    expect(
+      () => cadRepository.loadModel('100k-12345'),
+      throwsA(
+        isA<ApiException>().having(
+          (exception) => exception.message,
+          'message',
+          'The downloaded 3D model is not a valid GLB file.',
+        ),
+      ),
+    );
   });
 
   test(

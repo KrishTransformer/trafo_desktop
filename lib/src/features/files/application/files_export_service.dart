@@ -70,10 +70,13 @@ class UrlLauncherFilesDocumentOpener implements FilesDocumentOpener {
 }
 
 class FilesExportService {
-  FilesExportService({FilesDocumentOpener? opener})
-    : _opener = opener ?? UrlLauncherFilesDocumentOpener();
+  FilesExportService({FilesDocumentOpener? opener, Uri? deliveryBaseUri})
+    : _opener = opener ?? UrlLauncherFilesDocumentOpener(),
+      _deliveryBaseUri =
+          deliveryBaseUri ?? Uri.parse('https://design.trafointel.com');
 
   final FilesDocumentOpener _opener;
+  final Uri _deliveryBaseUri;
 
   Future<void> exportByLabel({
     required String label,
@@ -133,10 +136,7 @@ class FilesExportService {
       return null;
     }
 
-    return Uri.parse(
-      'https://transformer.treffertech.com/000_delivery/'
-      '$designId/$designId$suffix',
-    );
+    return _deliveryBaseUri.resolve('/000_delivery/$designId/$designId$suffix');
   }
 
   String _fileNameForAction({
@@ -178,6 +178,17 @@ class FilesExportService {
           build: (context) => state.multiWindingDesign == null
               ? _buildDesignPrintOut(state)
               : _buildMultiWindingDesignPrintOut(state),
+        ),
+      );
+    } else if (action == FilesExportAction.coreAssembly ||
+        action == FilesExportAction.coreBlade) {
+      document.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.letter,
+          margin: const pw.EdgeInsets.fromLTRB(54, 60, 42, 48),
+          build: (context) => action == FilesExportAction.coreAssembly
+              ? _coreAssemblyPrintout(state)
+              : _coreBladePrintout(state),
         ),
       );
     } else {
@@ -1337,44 +1348,427 @@ class FilesExportService {
   }
 
   List<pw.Widget> _buildCoreAssembly(FilesState state) {
-    final core = state.coreResult;
-    return [
-      _section(
-        'Core Metrics',
-        _keyValueRows(<List<String>>[
-          ['Core Area', _display(core?.coreArea)],
-          ['Designed Core Area', _display(core?.designedCoreArea)],
-          ['Core Weight', _display(core?.coreWeight)],
-          ['Stack Rows', '${core?.bldStacks.length ?? 0}'],
-        ]),
-      ),
-      pw.SizedBox(height: 12),
-      _section(
-        'Stacking Table',
-        _stackTable(core?.bldStacks ?? const <CoreStackStep>[]),
-      ),
-    ];
+    return [_coreAssemblyPrintout(state)];
   }
 
   List<pw.Widget> _buildCoreBlade(FilesState state) {
+    return [_coreBladePrintout(state)];
+  }
+
+  pw.Widget _coreAssemblyPrintout(FilesState state) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: _printText(
+            'Design Ref : ${_designReference(state)}',
+            bold: true,
+          ),
+        ),
+        pw.SizedBox(height: 28),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(left: 100),
+          child: _printText(_coreHeaderBlock(state)),
+        ),
+        pw.SizedBox(height: 54),
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.SizedBox(width: 230, child: _printText(_assemblyAscii())),
+            pw.SizedBox(width: 28),
+            pw.Expanded(child: _printText(_circleStackAscii(state))),
+          ],
+        ),
+        pw.SizedBox(height: 46),
+        _printText(_assemblyStackBlock(state)),
+        pw.SizedBox(height: 40),
+        _printText(_assemblySummaryBlock(state)),
+      ],
+    );
+  }
+
+  pw.Widget _coreBladePrintout(FilesState state) {
+    return pw.Stack(
+      children: [
+        pw.Positioned(
+          top: 0,
+          right: 0,
+          child: _printText(
+            'Design Ref : ${_designReference(state)}',
+            bold: true,
+          ),
+        ),
+        pw.Positioned(
+          top: 44,
+          left: 170,
+          child: _printText(_coreHeaderBlock(state, compactKva: true)),
+        ),
+        pw.Positioned(
+          top: 130,
+          left: 0,
+          child: _printText(_bladeSketchAscii()),
+        ),
+        pw.Positioned(
+          top: 126,
+          left: 170,
+          right: 0,
+          child: _printText(_bladeTableBlock(state)),
+        ),
+        pw.Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _printText(_bladeNotesBlock(state)),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _printText(String text, {bool bold = false, double fontSize = 10}) {
+    return pw.Text(
+      text,
+      style: pw.TextStyle(
+        fontSize: fontSize,
+        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+      ),
+      softWrap: false,
+    );
+  }
+
+  String _coreHeaderBlock(FilesState state, {bool compactKva = false}) {
+    final secondary = _filesDesignValue(
+      state,
+      ['highVoltage', 'secondaryVoltage'],
+      ['secondaryVoltage', 'highVoltage'],
+    );
+    final primary = _filesDesignValue(
+      state,
+      ['lowVoltage', 'primaryVoltage'],
+      ['primaryVoltage', 'lowVoltage'],
+    );
+    final frequency = _filesDesignValue(state, ['frequency'], ['frequency']);
+    final kva = _filesDesignValue(state, ['kVA'], ['kVA']);
+    final kvaLabel = compactKva
+        ? '${_dashIfEmpty(kva)}kVA'
+        : '${_dashIfEmpty(kva)} kVA';
+    return <String>[
+      'CORE Details for Transformer',
+      '${_dashIfEmpty(secondary)} / ${_dashIfEmpty(primary)} V, Hz:${_dashIfEmpty(frequency)},    $kvaLabel',
+      'CORE Size : ${_coreSizeLabel(state)} , ${_bladeLabel(state.coreResult)}',
+    ].join('\n');
+  }
+
+  String _coreSizeLabel(FilesState state) {
+    final values = <String>[
+      _filesDesignValue(state, ['core.coreDia'], ['core.coreDia']),
+      _filesDesignValue(state, ['core.limbHt'], ['core.limbHt']),
+      _filesDesignValue(
+        state,
+        ['core.cenDist'],
+        ['core.cenDist', 'coilDimensions.centerDistance'],
+      ),
+    ].where((value) => value.trim().isNotEmpty).toList(growable: false);
+    return values.isEmpty ? '-' : values.join(' / ');
+  }
+
+  String _filesDesignValue(
+    FilesState state,
+    List<String> twoPaths,
+    List<String> multiPaths, {
+    Object? fallback,
+  }) {
+    return _blankIfMissing(
+      _readDesign(
+        state.twoWindingDesign,
+        twoPaths,
+        fallback: _readMulti(
+          state.multiWindingDesign,
+          multiPaths,
+          fallback: fallback,
+        ),
+      ),
+    );
+  }
+
+  String _assemblyAscii() {
+    return r'''
+       B
+  +---------------+
+ /|     | |     |\ 
+C |     |A|     | C
+ \|_____|_|_____|
+       B''';
+  }
+
+  String _bladeSketchAscii() {
+    return r'''
+ W
+   ______
+  /      |----
+B |      |   A
+  |______|
+     \ OFFSET 10mm
+
+     A
+  ___________   W
+ /____/\_____\
+ Notch, W/2 depth
+
+     B
+  ___________   W
+ /___________\
+     A''';
+  }
+
+  String _circleStackAscii(FilesState state) {
+    final steps = state.coreResult?.bldStacks ?? const <CoreStackStep>[];
+    final labels = steps
+        .take(4)
+        .map((step) {
+          return 'Step ${_valueText(step.stepNo).padLeft(2)} , Ht= ${_valueText(step.stack).padLeft(4)} mm';
+        })
+        .join('\n');
+    return <String>[
+      '             ______________',
+      '        ____/--------------\\____',
+      '     __/------------------------\\__',
+      '   _/------------------------------\\_',
+      labels,
+      '   \\_------------------------------_/',
+      '     \\__------------------------__/',
+      '        \\____--------------____/',
+      '             --------------',
+    ].join('\n');
+  }
+
+  String _assemblyStackBlock(FilesState state) {
+    final steps = state.coreResult?.bldStacks ?? const <CoreStackStep>[];
+    String row(String label, Iterable<Object?> values) {
+      return label.padRight(15) +
+          values.map((value) => _compactNumber(value).padLeft(6)).join();
+    }
+
+    return <String>[
+      row('Stack Step No', steps.map((step) => step.stepNo)),
+      row('Width    (mm)', steps.map((step) => step.width)),
+      row('Step Ht  (mm)', steps.map((step) => step.stack)),
+    ].join('\n');
+  }
+
+  String _assemblySummaryBlock(FilesState state) {
     final core = state.coreResult;
-    final twoWinding = state.twoWindingDesign;
-    return [
-      _section(
-        'Blade Inputs',
-        _keyValueRows(<List<String>>[
-          ['Core Diameter', _display(twoWinding?.readPath('core.coreDia'))],
-          ['Core Weight', _display(core?.coreWeight)],
-          ['Gross Core Area', _display(core?.coreArea)],
-          ['Designed Core Area', _display(core?.designedCoreArea)],
-        ]),
+    final fluxDensity = _filesDesignValue(
+      state,
+      ['lvFormulas.revisedFluxDensity', 'fluxDensity'],
+      ['revisedFluxDensity', 'fluxDensity'],
+    );
+    final voltsPerTurn = _filesDesignValue(
+      state,
+      ['lvFormulas.revisedVoltsPerTurn', 'revisedVoltsPerTurn'],
+      ['performance.voltsPerTurn', 'revisedVoltsPerTurn'],
+    );
+    final noLoadCurrent = _filesDesignValue(
+      state,
+      ['performance.nlCurrentPercentage', 'commonFormulas.noLoadCurrent'],
+      ['performance.nlCurrentPercentage'],
+    );
+    final noLoadLoss = _filesDesignValue(
+      state,
+      ['performance.noLoadLoss', 'coreLoss'],
+      ['performance.noLoadLoss', 'coreLoss'],
+    );
+
+    String summary(String label, Object? value) {
+      return '${label.padRight(40)}: ${_dashIfEmpty(_valueText(value))}';
+    }
+
+    return <String>[
+      summary('TOTAL CROSS-SECTION (sqcm)', core?.coreArea),
+      summary('EFFECTIVE CROSS-SECTION(sqcm)', core?.designedCoreArea),
+      summary('HIGHEST V/F CONDITION   %', fluxDensity),
+      summary('NORMAL FLUX DENSITY', _gaussLabel(fluxDensity)),
+      summary(
+        'HIGHEST FLUX DENSITY Under V/F Condn.',
+        _gaussLabel(fluxDensity),
       ),
-      pw.SizedBox(height: 12),
-      _section(
-        'Blade Stack Rows',
-        _stackTable(core?.bldStacks ?? const <CoreStackStep>[]),
-      ),
+      summary('SATURATION LEVEL FOR THE CORE MATERIAL', '20,500 gauss'),
+      'VOLTS per TURN :${_dashIfEmpty(voltsPerTurn)}. Weight Of CORE :${_display(core?.coreWeight)} kg',
+      'NO-LOAD Current: ${_dashIfEmpty(noLoadCurrent)}Amps.   NO-LOAD Loss :${_dashIfEmpty(noLoadLoss)} kW',
+    ].join('\n');
+  }
+
+  String _bladeTableBlock(FilesState state) {
+    final core = state.coreResult;
+    final rows = _bladeSections(core);
+    final isCrusi3 = core?.bladeType == 'CRUSI_3';
+    final buffer = StringBuffer()
+      ..writeln(
+        isCrusi3
+            ? 'Step    Len A    Len B    Width    Stack    Weight   ${_holeText(core)}'
+            : 'Step    Length   Width    Stack    Weight   ${_holeText(core)}',
+      )
+      ..writeln(
+        isCrusi3
+            ? ' No.      mm        mm       mm       mm       kg     ${_centerText(state)}'
+            : ' No.      mm       mm       mm       kg     ${_centerText(state)}',
+      )
+      ..writeln('${'-' * 52}From One End(See Below)');
+
+    var total = 0.0;
+    for (final section in rows) {
+      for (final row in section.rows) {
+        buffer.writeln(_bladeRow(row, isCrusi3: isCrusi3));
+      }
+      total += section.totalWeight;
+      buffer.writeln(
+        '${'-' * 52}Group Total=${section.totalWeight.toStringAsFixed(2)}',
+      );
+    }
+    final totalLabel = total == 0
+        ? _display(core?.coreWeight)
+        : total.toStringAsFixed(2);
+    buffer.writeln('                 Total Weight:   $totalLabel kg');
+    return buffer.toString().trimRight();
+  }
+
+  String _bladeNotesBlock(FilesState state) {
+    final core = state.coreResult;
+    final material = _filesDesignValue(
+      state,
+      ['core.coreMaterial', 'coreMaterial'],
+      ['core.coreMaterial'],
+    );
+    return <String>[
+      '1. All dimensions are in mm.  2. All cutting angles are at 45 deg.',
+      '3. Deburring And/Or Annealing required. 5. The weights are Approx.',
+      '4. NET C/S(sq cm):${_display(core?.designedCoreArea)}    Material : ${_dashIfEmpty(material)}',
+      '5. Gross C/s = ${_display(core?.coreArea)}  Area = ${_filesDesignValue(state, ['core.coreDia'], ['core.coreDia'])}  Stack factor =  0.97',
+    ].join('\n');
+  }
+
+  List<_CoreBladeSection> _bladeSections(CoreCalculationResult? core) {
+    if (core == null) {
+      return const <_CoreBladeSection>[];
+    }
+    final isFourBlade =
+        core.bladeType == 'CRUSI_4' || core.bladeType == 'BLADE_4';
+    final isThreeBlade =
+        core.bladeType == 'CRUSI_3' || core.bladeType == 'BLADE_3';
+    final weightIndex = core.bladeType == 'CRUSI_3' ? 5 : 4;
+    final paths = <String>[
+      'centerLimbStacking',
+      isThreeBlade ? 'yokeStacking' : 'sideLimbStacking',
+      isThreeBlade ? 'sideLimbStacking' : 'doubleNotchStacking',
+      if (isFourBlade) 'singleNotchStacking',
     ];
+    final sections = paths
+        .map((path) {
+          final rows = core
+              .tableAt(path)
+              .where(_hasVisibleCell)
+              .toList(growable: false);
+          return _CoreBladeSection(
+            rows: rows,
+            totalWeight: _tableWeight(rows, weightIndex),
+          );
+        })
+        .where((section) => section.rows.isNotEmpty)
+        .toList(growable: false);
+    if (sections.isNotEmpty) {
+      return sections;
+    }
+    final fallbackRows = core.bldStacks
+        .map(
+          (step) => <Object?>[step.stepNo, '', '', step.width, step.stack, ''],
+        )
+        .toList(growable: false);
+    return <_CoreBladeSection>[
+      _CoreBladeSection(rows: fallbackRows, totalWeight: 0),
+    ];
+  }
+
+  bool _hasVisibleCell(List<Object?> row) {
+    return row.any((cell) => _valueText(cell).trim().isNotEmpty);
+  }
+
+  double _tableWeight(List<List<Object?>> rows, int weightIndex) {
+    return rows.fold<double>(0, (sum, row) {
+      if (weightIndex >= row.length) {
+        return sum;
+      }
+      return sum + (double.tryParse(_valueText(row[weightIndex])) ?? 0);
+    });
+  }
+
+  String _bladeRow(List<Object?> row, {required bool isCrusi3}) {
+    final width = isCrusi3 ? 6 : 5;
+    final cells = List<Object?>.generate(
+      width,
+      (index) => index < row.length ? row[index] : '',
+    ).map(_compactNumber).toList();
+    if (isCrusi3) {
+      return '${cells[0].padLeft(4)}'
+          '${cells[1].padLeft(10)}'
+          '${cells[2].padLeft(10)}'
+          '${cells[3].padLeft(9)}'
+          '${cells[4].padLeft(9)}'
+          '${cells[5].padLeft(10)}';
+    }
+    return '${cells[0].padLeft(4)}'
+        '${cells[1].padLeft(10)}'
+        '${cells[2].padLeft(9)}'
+        '${cells[3].padLeft(9)}'
+        '${cells[4].padLeft(10)}';
+  }
+
+  String _holeText(CoreCalculationResult? core) {
+    final isFourBlade =
+        core?.bladeType == 'CRUSI_4' || core?.bladeType == 'BLADE_4';
+    return '2HolesDia = ${isFourBlade ? '18' : '22'} mm';
+  }
+
+  String _centerText(FilesState state) {
+    final center = _filesDesignValue(
+      state,
+      ['core.cenDist'],
+      ['core.cenDist', 'coilDimensions.centerDistance'],
+    );
+    if (center.isEmpty) {
+      return '';
+    }
+    final secondary = (double.tryParse(center) ?? 0) + 20;
+    return 'CenDist:${center.padRight(4)},${_compactNumber(secondary)}';
+  }
+
+  String _bladeLabel(CoreCalculationResult? core) {
+    final type = core?.bladeType ?? 'CRUSI_3';
+    return type == 'CRUSI_4' || type == 'BLADE_4' ? '4Cruci' : '3Cruci';
+  }
+
+  String _compactNumber(Object? value) {
+    final text = _valueText(value);
+    final parsed = double.tryParse(text);
+    if (parsed == null) {
+      return text;
+    }
+    if (parsed == parsed.roundToDouble()) {
+      return parsed.round().toString();
+    }
+    return parsed
+        .toStringAsFixed(2)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  String _dashIfEmpty(String value) => value.trim().isEmpty ? '-' : value;
+
+  String _gaussLabel(String value) {
+    final parsed = double.tryParse(value);
+    if (parsed == null || parsed == 0) {
+      return '';
+    }
+    return '${(parsed * 10000).round()} gauss';
   }
 
   List<pw.Widget> _buildLom(FilesState state) {
@@ -1442,26 +1836,6 @@ class FilesExportService {
         0: const pw.FlexColumnWidth(2),
         1: const pw.FlexColumnWidth(3),
       },
-    );
-  }
-
-  pw.Widget _stackTable(List<CoreStackStep> steps) {
-    if (steps.isEmpty) {
-      return pw.Text('No core stack data available.');
-    }
-
-    return pw.TableHelper.fromTextArray(
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-      headers: const <String>['Step No', 'Width', 'Stack'],
-      data: steps
-          .map(
-            (step) => <String>[
-              _display(step.stepNo),
-              _display(step.width),
-              _display(step.stack),
-            ],
-          )
-          .toList(growable: false),
     );
   }
 
@@ -1795,6 +2169,13 @@ class _DesignPrintField {
 
   final String label;
   final Object? value;
+}
+
+class _CoreBladeSection {
+  const _CoreBladeSection({required this.rows, required this.totalWeight});
+
+  final List<List<Object?>> rows;
+  final double totalWeight;
 }
 
 class _MultiPrintWindingSpec {

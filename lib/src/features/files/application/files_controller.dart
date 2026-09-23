@@ -42,21 +42,18 @@ class FilesController extends ChangeNotifier {
       return;
     }
 
-    final multiWindingDesign = _readMultiWindingDesign(
-      initialSummary?.multiWindings,
-    );
-    final twoWindingDesign = _readFilesDesign(initialSummary);
-    final fabricationResult = _readFabrication(initialSummary?.fabrication);
-    final coreResult = _readCoreResult(initialSummary?.core);
+    final summary = await _hydrateSummary(initialSummary);
+    final multiWindingDesign = _readMultiWindingDesign(summary?.multiWindings);
+    final twoWindingDesign = _readFilesDesign(summary);
+    final fabricationResult = _readFabrication(summary?.fabrication);
+    final coreResult = _readCoreResult(summary?.core);
 
     _setState(
       _state.copyWith(
         isInitialized: true,
-        entityId: initialSummary?.id ?? (_routeId == 'new' ? '' : _routeId),
+        entityId: summary?.id ?? (_routeId == 'new' ? '' : _routeId),
         designId:
-            initialSummary?.designId ??
-            twoWindingDesign?.stringAt('designId') ??
-            '',
+            summary?.designId ?? twoWindingDesign?.stringAt('designId') ?? '',
         twoWindingDesign: twoWindingDesign,
         multiWindingDesign: multiWindingDesign,
         fabricationResult: fabricationResult,
@@ -66,6 +63,36 @@ class FilesController extends ChangeNotifier {
     );
 
     await _loadMaterialsAndGenerateLom();
+  }
+
+  Future<DesignSummary?> _hydrateSummary(DesignSummary? initialSummary) async {
+    if (_routeId == 'new' || _routeId.isEmpty) {
+      return initialSummary;
+    }
+
+    if (_hasFilesInputs(initialSummary)) {
+      return initialSummary;
+    }
+
+    try {
+      return await _designRepository.fetchDesign(_routeId);
+    } on ApiException catch (exception) {
+      _setState(_state.copyWith(errorMessage: exception.message));
+      return initialSummary;
+    } catch (_) {
+      _setState(
+        _state.copyWith(errorMessage: 'Unable to load the selected design.'),
+      );
+      return initialSummary;
+    }
+  }
+
+  bool _hasFilesInputs(DesignSummary? summary) {
+    if (summary == null || summary.fabrication == null) {
+      return false;
+    }
+
+    return summary.twoWindings != null || summary.multiWindings != null;
   }
 
   void clearErrorMessage() {

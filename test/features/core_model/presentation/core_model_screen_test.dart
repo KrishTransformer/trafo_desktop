@@ -32,16 +32,15 @@ void main() {
           id: 'entity-1',
           designId: '100k-12345',
           twoWindings:
-              '{"designId":"100k-12345","core":{"coreDia":210,"limbHt":640,"cenDist":420},"lvFormulas":{"revisedFluxDensity":1.652}}',
+              '{"designId":"100k-12345","kVA":100,"lowVoltage":433,"highVoltage":11000,"frequency":50,"core":{"coreDia":210,"limbHt":640,"cenDist":420},"lvFormulas":{"revisedFluxDensity":1.652}}',
           core:
-              '{"coreArea":1234,"coreWeight":456,"designedCoreArea":1111,"bldStacks":[{"stepNo":1,"width":120,"stack":90},{"stepNo":2,"width":80,"stack":45}]}',
+              '{"coreArea":1234,"coreWeight":456,"designedCoreArea":1111,"eCoreBladeType":"CRUSI_3","bldStacks":[{"stepNo":1,"width":120,"stack":90},{"stepNo":2,"width":80,"stack":45}],"centerLimbStacking":[[1,110,120,130,90,12.5]],"yokeStacking":[[1,210,220,230,95,15.25]],"sideLimbStacking":[[1,310,320,330,100,20.5]]}',
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Core Model'), findsOneWidget);
-    expect(find.text('Reference: 100k-12345'), findsOneWidget);
+    expect(find.text('Core Inputs'), findsOneWidget);
     expect(find.text('Gross Core Area'), findsOneWidget);
     expect(find.text('1234 sqmm'), findsOneWidget);
     expect(find.text('Selected Step'), findsOneWidget);
@@ -62,9 +61,9 @@ void main() {
           id: 'entity-1',
           designId: '100k-12345',
           twoWindings:
-              '{"designId":"100k-12345","core":{"coreDia":210,"limbHt":640,"cenDist":420},"lvFormulas":{"revisedFluxDensity":1.652}}',
+              '{"designId":"100k-12345","kVA":100,"lowVoltage":433,"highVoltage":11000,"frequency":50,"core":{"coreDia":210,"limbHt":640,"cenDist":420},"lvFormulas":{"revisedFluxDensity":1.652}}',
           core:
-              '{"coreArea":1234,"coreWeight":456,"designedCoreArea":1111,"bldStacks":[{"stepNo":1,"width":120,"stack":90},{"stepNo":2,"width":80,"stack":45}]}',
+              '{"coreArea":1234,"coreWeight":456,"designedCoreArea":1111,"eCoreBladeType":"CRUSI_3","bldStacks":[{"stepNo":1,"width":120,"stack":90},{"stepNo":2,"width":80,"stack":45}],"centerLimbStacking":[[1,110,120,130,90,12.5]],"yokeStacking":[[1,210,220,230,95,15.25]],"sideLimbStacking":[[1,310,320,330,100,20.5]]}',
         ),
       ),
     );
@@ -74,9 +73,17 @@ void main() {
     await tester.tap(find.text('Print Preview'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Core Print Preview'), findsOneWidget);
-    expect(find.text('Stacking'), findsOneWidget);
-    expect(find.text('Close'), findsOneWidget);
+    expect(find.text('CORE Details for Transformer'), findsOneWidget);
+    expect(find.textContaining('Core Size :'), findsOneWidget);
+    expect(
+      find.text('Grand Total = 12.50', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Total Weight: 48.25 kg', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Close'), findsOneWidget);
   });
 }
 
