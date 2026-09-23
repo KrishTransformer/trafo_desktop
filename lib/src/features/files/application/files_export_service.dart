@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -182,13 +182,14 @@ class FilesExportService {
       );
     } else if (action == FilesExportAction.coreAssembly ||
         action == FilesExportAction.coreBlade) {
+      final corePrintImages = await _loadCorePrintImages();
       document.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.letter,
           margin: const pw.EdgeInsets.fromLTRB(54, 60, 42, 48),
           build: (context) => action == FilesExportAction.coreAssembly
-              ? _coreAssemblyPrintout(state)
-              : _coreBladePrintout(state),
+              ? _coreAssemblyPrintout(state, corePrintImages)
+              : _coreBladePrintout(state, corePrintImages),
         ),
       );
     } else {
@@ -237,6 +238,33 @@ class FilesExportService {
       base: base,
       bold: base,
       fontFallback: fallbacks,
+    );
+  }
+
+  Future<_CorePrintImages> _loadCorePrintImages() async {
+    Future<pw.MemoryImage> load(String path) async {
+      try {
+        final data = await rootBundle.load(path);
+        return pw.MemoryImage(data.buffer.asUint8List());
+      } catch (_) {
+        return pw.MemoryImage(await File(path).readAsBytes());
+      }
+    }
+
+    return _CorePrintImages(
+      assembly3Blade: await load('assets/core_preview/Assembly1.png'),
+      assembly4Blade: await load('assets/core_preview/Assembly2.png'),
+      blade3Images: [
+        await load('assets/core_preview/core1.png'),
+        await load('assets/core_preview/core2.png'),
+        await load('assets/core_preview/core3.png'),
+      ],
+      blade4Images: [
+        await load('assets/core_preview/core4.1.png'),
+        await load('assets/core_preview/core4.2.png'),
+        await load('assets/core_preview/core4.3.png'),
+        await load('assets/core_preview/core4.4.png'),
+      ],
     );
   }
 
@@ -1355,7 +1383,11 @@ class FilesExportService {
     return [_coreBladePrintout(state)];
   }
 
-  pw.Widget _coreAssemblyPrintout(FilesState state) {
+  pw.Widget _coreAssemblyPrintout(
+    FilesState state, [
+    _CorePrintImages? images,
+  ]) {
+    final isFourBlade = _isFourBladeCore(state.coreResult);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -1368,27 +1400,29 @@ class FilesExportService {
         ),
         pw.SizedBox(height: 28),
         pw.Padding(
-          padding: const pw.EdgeInsets.only(left: 100),
-          child: _printText(_coreHeaderBlock(state)),
+          padding: const pw.EdgeInsets.only(left: 82, right: 82),
+          child: _coreAssemblyHeaderTable(state),
         ),
         pw.SizedBox(height: 54),
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.SizedBox(width: 230, child: _printText(_assemblyAscii())),
-            pw.SizedBox(width: 28),
-            pw.Expanded(child: _printText(_circleStackAscii(state))),
-          ],
+        pw.Center(
+          child: images == null
+              ? _printText(_assemblyAscii())
+              : pw.Image(
+                  isFourBlade ? images.assembly4Blade : images.assembly3Blade,
+                  width: isFourBlade ? 190 : 245,
+                  height: isFourBlade ? 200 : 138,
+                  fit: pw.BoxFit.contain,
+                ),
         ),
-        pw.SizedBox(height: 46),
-        _printText(_assemblyStackBlock(state)),
-        pw.SizedBox(height: 40),
-        _printText(_assemblySummaryBlock(state)),
+        pw.SizedBox(height: isFourBlade ? 28 : 42),
+        _assemblyStackTable(state),
+        pw.SizedBox(height: 32),
+        _assemblySummaryTable(state),
       ],
     );
   }
 
-  pw.Widget _coreBladePrintout(FilesState state) {
+  pw.Widget _coreBladePrintout(FilesState state, [_CorePrintImages? images]) {
     return pw.Stack(
       children: [
         pw.Positioned(
@@ -1407,13 +1441,24 @@ class FilesExportService {
         pw.Positioned(
           top: 130,
           left: 0,
-          child: _printText(_bladeSketchAscii()),
-        ),
-        pw.Positioned(
-          top: 126,
-          left: 170,
           right: 0,
-          child: _printText(_bladeTableBlock(state)),
+          child: images == null
+              ? pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _printText(_bladeSketchAscii()),
+                    pw.SizedBox(width: 16),
+                    pw.Expanded(child: _printText(_bladeTableBlock(state))),
+                  ],
+                )
+              : pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _coreBladeDiagramColumn(state, images),
+                    pw.SizedBox(width: 16),
+                    pw.Expanded(child: _printText(_bladeTableBlock(state))),
+                  ],
+                ),
         ),
         pw.Positioned(
           left: 0,
@@ -1422,6 +1467,204 @@ class FilesExportService {
           child: _printText(_bladeNotesBlock(state)),
         ),
       ],
+    );
+  }
+
+  pw.Widget _coreBladeDiagramColumn(FilesState state, _CorePrintImages images) {
+    final isFourBlade = _isFourBladeCore(state.coreResult);
+    final diagramImages = isFourBlade
+        ? images.blade4Images
+        : images.blade3Images;
+    final imageWidth = isFourBlade ? 128.0 : 136.0;
+    final imageHeight = isFourBlade ? 46.0 : 68.0;
+    final gap = isFourBlade ? 12.0 : 18.0;
+
+    return pw.SizedBox(
+      width: 150,
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          for (var index = 0; index < diagramImages.length; index += 1) ...[
+            pw.Image(
+              diagramImages[index],
+              width: imageWidth,
+              height: imageHeight,
+              fit: pw.BoxFit.contain,
+            ),
+            if (index != diagramImages.length - 1) pw.SizedBox(height: gap),
+          ],
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _coreAssemblyHeaderTable(FilesState state) {
+    final secondary = _filesDesignValue(
+      state,
+      ['highVoltage', 'secondaryVoltage'],
+      ['secondaryVoltage', 'highVoltage'],
+    );
+    final primary = _filesDesignValue(
+      state,
+      ['lowVoltage', 'primaryVoltage'],
+      ['primaryVoltage', 'lowVoltage'],
+    );
+    final frequency = _filesDesignValue(state, ['frequency'], ['frequency']);
+    final kva = _filesDesignValue(state, ['kVA'], ['kVA']);
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Center(
+          child: _printText(
+            'CORE Details for Transformer',
+            bold: true,
+            fontSize: 11,
+          ),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.black, width: 0.45),
+          columnWidths: const <int, pw.TableColumnWidth>{
+            0: pw.FlexColumnWidth(1.2),
+            1: pw.FlexColumnWidth(2.4),
+          },
+          children: [
+            _printoutRow([
+              'Transformer',
+              '${_dashIfEmpty(secondary)} / ${_dashIfEmpty(primary)} V, Hz:${_dashIfEmpty(frequency)}, ${_dashIfEmpty(kva)} kVA',
+            ]),
+            _printoutRow(['CORE Size', _coreSizeLabel(state)]),
+            _printoutRow(['Blade', _bladeLabel(state.coreResult)]),
+          ],
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _assemblyStackTable(FilesState state) {
+    final steps = state.coreResult?.bldStacks ?? const <CoreStackStep>[];
+    if (steps.isEmpty) {
+      return _printText('No core stack data available.');
+    }
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.45),
+      columnWidths: <int, pw.TableColumnWidth>{
+        0: const pw.FlexColumnWidth(1.8),
+        for (var index = 0; index < steps.length; index += 1)
+          index + 1: const pw.FlexColumnWidth(),
+      },
+      children: [
+        _printoutRow([
+          'Stack Step No',
+          ...steps.map((step) => _compactNumber(step.stepNo)),
+        ], isHeader: true),
+        _printoutRow([
+          'Width (mm)',
+          ...steps.map((step) => _compactNumber(step.width)),
+        ]),
+        _printoutRow([
+          'Step Ht (mm)',
+          ...steps.map((step) => _compactNumber(step.stack)),
+        ]),
+      ],
+    );
+  }
+
+  pw.Widget _assemblySummaryTable(FilesState state) {
+    final core = state.coreResult;
+    final fluxDensity = _filesDesignValue(
+      state,
+      ['lvFormulas.revisedFluxDensity', 'fluxDensity'],
+      ['revisedFluxDensity', 'fluxDensity'],
+    );
+    final voltsPerTurn = _filesDesignValue(
+      state,
+      ['lvFormulas.revisedVoltsPerTurn', 'revisedVoltsPerTurn'],
+      ['performance.voltsPerTurn', 'revisedVoltsPerTurn'],
+    );
+    final noLoadCurrent = _filesDesignValue(
+      state,
+      ['performance.nlCurrentPercentage', 'commonFormulas.noLoadCurrent'],
+      ['performance.nlCurrentPercentage'],
+    );
+    final noLoadLoss = _filesDesignValue(
+      state,
+      ['performance.noLoadLoss', 'coreLoss'],
+      ['performance.noLoadLoss', 'coreLoss'],
+    );
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.45),
+      columnWidths: const <int, pw.TableColumnWidth>{
+        0: pw.FlexColumnWidth(2.4),
+        1: pw.FlexColumnWidth(1.3),
+        2: pw.FlexColumnWidth(2.4),
+        3: pw.FlexColumnWidth(1.3),
+      },
+      children: [
+        _printoutRow([
+          'Parameter',
+          'Value',
+          'Parameter',
+          'Value',
+        ], isHeader: true),
+        _printoutRow([
+          'TOTAL CROSS-SECTION (sqcm)',
+          _display(core?.coreArea),
+          'EFFECTIVE CROSS-SECTION(sqcm)',
+          _display(core?.designedCoreArea),
+        ]),
+        _printoutRow([
+          'HIGHEST V/F CONDITION %',
+          _dashIfEmpty(fluxDensity),
+          'NORMAL FLUX DENSITY',
+          _gaussLabel(fluxDensity),
+        ]),
+        _printoutRow([
+          'HIGHEST FLUX DENSITY Under V/F Condn.',
+          _gaussLabel(fluxDensity),
+          'SATURATION LEVEL FOR THE CORE MATERIAL',
+          '20,500 gauss',
+        ]),
+        _printoutRow([
+          'VOLTS per TURN',
+          _dashIfEmpty(voltsPerTurn),
+          'Weight Of CORE',
+          '${_display(core?.coreWeight)} kg',
+        ]),
+        _printoutRow([
+          'NO-LOAD Current',
+          '${_dashIfEmpty(noLoadCurrent)} Amps',
+          'NO-LOAD Loss',
+          '${_dashIfEmpty(noLoadLoss)} kW',
+        ]),
+      ],
+    );
+  }
+
+  pw.TableRow _printoutRow(List<String> cells, {bool isHeader = false}) {
+    return pw.TableRow(
+      decoration: isHeader
+          ? const pw.BoxDecoration(color: PdfColors.grey300)
+          : null,
+      children: cells
+          .map((cell) => _printoutCell(cell, isHeader: isHeader))
+          .toList(growable: false),
+    );
+  }
+
+  pw.Widget _printoutCell(String text, {bool isHeader = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 8.5,
+          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
     );
   }
 
@@ -1519,83 +1762,6 @@ B |      |   A
   ___________   W
  /___________\
      A''';
-  }
-
-  String _circleStackAscii(FilesState state) {
-    final steps = state.coreResult?.bldStacks ?? const <CoreStackStep>[];
-    final labels = steps
-        .take(4)
-        .map((step) {
-          return 'Step ${_valueText(step.stepNo).padLeft(2)} , Ht= ${_valueText(step.stack).padLeft(4)} mm';
-        })
-        .join('\n');
-    return <String>[
-      '             ______________',
-      '        ____/--------------\\____',
-      '     __/------------------------\\__',
-      '   _/------------------------------\\_',
-      labels,
-      '   \\_------------------------------_/',
-      '     \\__------------------------__/',
-      '        \\____--------------____/',
-      '             --------------',
-    ].join('\n');
-  }
-
-  String _assemblyStackBlock(FilesState state) {
-    final steps = state.coreResult?.bldStacks ?? const <CoreStackStep>[];
-    String row(String label, Iterable<Object?> values) {
-      return label.padRight(15) +
-          values.map((value) => _compactNumber(value).padLeft(6)).join();
-    }
-
-    return <String>[
-      row('Stack Step No', steps.map((step) => step.stepNo)),
-      row('Width    (mm)', steps.map((step) => step.width)),
-      row('Step Ht  (mm)', steps.map((step) => step.stack)),
-    ].join('\n');
-  }
-
-  String _assemblySummaryBlock(FilesState state) {
-    final core = state.coreResult;
-    final fluxDensity = _filesDesignValue(
-      state,
-      ['lvFormulas.revisedFluxDensity', 'fluxDensity'],
-      ['revisedFluxDensity', 'fluxDensity'],
-    );
-    final voltsPerTurn = _filesDesignValue(
-      state,
-      ['lvFormulas.revisedVoltsPerTurn', 'revisedVoltsPerTurn'],
-      ['performance.voltsPerTurn', 'revisedVoltsPerTurn'],
-    );
-    final noLoadCurrent = _filesDesignValue(
-      state,
-      ['performance.nlCurrentPercentage', 'commonFormulas.noLoadCurrent'],
-      ['performance.nlCurrentPercentage'],
-    );
-    final noLoadLoss = _filesDesignValue(
-      state,
-      ['performance.noLoadLoss', 'coreLoss'],
-      ['performance.noLoadLoss', 'coreLoss'],
-    );
-
-    String summary(String label, Object? value) {
-      return '${label.padRight(40)}: ${_dashIfEmpty(_valueText(value))}';
-    }
-
-    return <String>[
-      summary('TOTAL CROSS-SECTION (sqcm)', core?.coreArea),
-      summary('EFFECTIVE CROSS-SECTION(sqcm)', core?.designedCoreArea),
-      summary('HIGHEST V/F CONDITION   %', fluxDensity),
-      summary('NORMAL FLUX DENSITY', _gaussLabel(fluxDensity)),
-      summary(
-        'HIGHEST FLUX DENSITY Under V/F Condn.',
-        _gaussLabel(fluxDensity),
-      ),
-      summary('SATURATION LEVEL FOR THE CORE MATERIAL', '20,500 gauss'),
-      'VOLTS per TURN :${_dashIfEmpty(voltsPerTurn)}. Weight Of CORE :${_display(core?.coreWeight)} kg',
-      'NO-LOAD Current: ${_dashIfEmpty(noLoadCurrent)}Amps.   NO-LOAD Loss :${_dashIfEmpty(noLoadLoss)} kW',
-    ].join('\n');
   }
 
   String _bladeTableBlock(FilesState state) {
@@ -1723,8 +1889,7 @@ B |      |   A
   }
 
   String _holeText(CoreCalculationResult? core) {
-    final isFourBlade =
-        core?.bladeType == 'CRUSI_4' || core?.bladeType == 'BLADE_4';
+    final isFourBlade = _isFourBladeCore(core);
     return '2HolesDia = ${isFourBlade ? '18' : '22'} mm';
   }
 
@@ -1742,8 +1907,12 @@ B |      |   A
   }
 
   String _bladeLabel(CoreCalculationResult? core) {
+    return _isFourBladeCore(core) ? '4Cruci' : '3Cruci';
+  }
+
+  bool _isFourBladeCore(CoreCalculationResult? core) {
     final type = core?.bladeType ?? 'CRUSI_3';
-    return type == 'CRUSI_4' || type == 'BLADE_4' ? '4Cruci' : '3Cruci';
+    return type == 'CRUSI_4' || type == 'BLADE_4';
   }
 
   String _compactNumber(Object? value) {
@@ -2176,6 +2345,20 @@ class _CoreBladeSection {
 
   final List<List<Object?>> rows;
   final double totalWeight;
+}
+
+class _CorePrintImages {
+  const _CorePrintImages({
+    required this.assembly3Blade,
+    required this.assembly4Blade,
+    required this.blade3Images,
+    required this.blade4Images,
+  });
+
+  final pw.MemoryImage assembly3Blade;
+  final pw.MemoryImage assembly4Blade;
+  final List<pw.MemoryImage> blade3Images;
+  final List<pw.MemoryImage> blade4Images;
 }
 
 class _MultiPrintWindingSpec {
