@@ -9,6 +9,8 @@ class LomRequest {
     required Map<String, Object?> lomRate,
     Map<String, Object?>? hvBushingRateSelection,
     Map<String, Object?>? lvBushingRateSelection,
+    Map<String, Object?>? hvConductorRateSelection,
+    Map<String, Object?>? lvConductorRateSelection,
   }) : lomBooleans = Map<String, Object?>.unmodifiable(lomBooleans),
        lomQuantity = Map<String, Object?>.unmodifiable(lomQuantity),
        lomRate = Map<String, Object?>.unmodifiable(lomRate),
@@ -17,7 +19,13 @@ class LomRequest {
            : Map<String, Object?>.unmodifiable(hvBushingRateSelection),
        lvBushingRateSelection = lvBushingRateSelection == null
            ? null
-           : Map<String, Object?>.unmodifiable(lvBushingRateSelection);
+           : Map<String, Object?>.unmodifiable(lvBushingRateSelection),
+       hvConductorRateSelection = hvConductorRateSelection == null
+           ? null
+           : Map<String, Object?>.unmodifiable(hvConductorRateSelection),
+       lvConductorRateSelection = lvConductorRateSelection == null
+           ? null
+           : Map<String, Object?>.unmodifiable(lvConductorRateSelection);
 
   final bool isTrue;
   final Map<String, Object?> lomBooleans;
@@ -25,6 +33,8 @@ class LomRequest {
   final Map<String, Object?> lomRate;
   final Map<String, Object?>? hvBushingRateSelection;
   final Map<String, Object?>? lvBushingRateSelection;
+  final Map<String, Object?>? hvConductorRateSelection;
+  final Map<String, Object?>? lvConductorRateSelection;
 
   Map<String, dynamic> toJson() {
     final normalizedBooleans = <String, Object?>{...lomBooleans};
@@ -61,6 +71,12 @@ class LomRequest {
     }
     if (lvBushingRateSelection != null) {
       payload['lvBushingRateSelection'] = lvBushingRateSelection;
+    }
+    if (hvConductorRateSelection != null) {
+      payload['hvConductorRateSelection'] = hvConductorRateSelection;
+    }
+    if (lvConductorRateSelection != null) {
+      payload['lvConductorRateSelection'] = lvConductorRateSelection;
     }
     return payload;
   }

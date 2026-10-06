@@ -446,6 +446,12 @@ class FilesController extends ChangeNotifier {
       lomBooleans: lomBooleans,
       lomQuantity: lomQuantity,
       lomRate: lomRate,
+      hvConductorRateSelection: _conductorRateSelection(
+        twoWinding.readPath('hVConductorMaterial'),
+      ),
+      lvConductorRateSelection: _conductorRateSelection(
+        twoWinding.readPath('lVConductorMaterial'),
+      ),
       hvBushingRateSelection: _bushingRateSelection(
         fabrication.readPath('hvb.hvb_Volt') ??
             twoWinding.readPath('highVoltage'),
@@ -473,6 +479,10 @@ class FilesController extends ChangeNotifier {
       'current': current,
       if (type != null && type.isNotEmpty) 'type': type,
     };
+  }
+
+  Map<String, Object?> _conductorRateSelection(Object? material) {
+    return <String, Object?>{'material': material};
   }
 
   bool _isTruthy(Object? value) {
