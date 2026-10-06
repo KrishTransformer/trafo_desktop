@@ -7,14 +7,24 @@ class LomRequest {
     required Map<String, Object?> lomBooleans,
     required Map<String, Object?> lomQuantity,
     required Map<String, Object?> lomRate,
+    Map<String, Object?>? hvBushingRateSelection,
+    Map<String, Object?>? lvBushingRateSelection,
   }) : lomBooleans = Map<String, Object?>.unmodifiable(lomBooleans),
        lomQuantity = Map<String, Object?>.unmodifiable(lomQuantity),
-       lomRate = Map<String, Object?>.unmodifiable(lomRate);
+       lomRate = Map<String, Object?>.unmodifiable(lomRate),
+       hvBushingRateSelection = hvBushingRateSelection == null
+           ? null
+           : Map<String, Object?>.unmodifiable(hvBushingRateSelection),
+       lvBushingRateSelection = lvBushingRateSelection == null
+           ? null
+           : Map<String, Object?>.unmodifiable(lvBushingRateSelection);
 
   final bool isTrue;
   final Map<String, Object?> lomBooleans;
   final Map<String, Object?> lomQuantity;
   final Map<String, Object?> lomRate;
+  final Map<String, Object?>? hvBushingRateSelection;
+  final Map<String, Object?>? lvBushingRateSelection;
 
   Map<String, dynamic> toJson() {
     final normalizedBooleans = <String, Object?>{...lomBooleans};
@@ -40,12 +50,19 @@ class LomRequest {
       }
     }
 
-    return <String, dynamic>{
+    final payload = <String, dynamic>{
       'isTrue': isTrue,
       'lomBooleans': booleanPayload,
       'lomQuantity': quantityPayload,
       'lomRate': ratePayload,
     };
+    if (hvBushingRateSelection != null) {
+      payload['hvBushingRateSelection'] = hvBushingRateSelection;
+    }
+    if (lvBushingRateSelection != null) {
+      payload['lvBushingRateSelection'] = lvBushingRateSelection;
+    }
+    return payload;
   }
 
   static Map<String, T> _pickKnownKeys<T>(

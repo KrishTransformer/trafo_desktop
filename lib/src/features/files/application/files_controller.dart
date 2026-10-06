@@ -151,7 +151,10 @@ class FilesController extends ChangeNotifier {
         _state.copyWith(
           isLoading: false,
           lomItems: response,
-          generatedRateKeys: request.lomRate.keys.toList(growable: false),
+          generatedRateKeys: response
+              .map((row) => row.stringAt('rateKey'))
+              .where((key) => key.isNotEmpty)
+              .toList(growable: false),
         ),
       );
       return true;
@@ -437,85 +440,39 @@ class FilesController extends ChangeNotifier {
     };
 
     final rateOverrides = _state.rateOverrides;
-    final lomRate = <String, Object?>{
-      'lamination': rateOverrides['lamination'] ?? _materialRateAt(0),
-      'hvConductor': rateOverrides['hvConductor'] ?? _materialRateAt(1),
-      'lvConductor': rateOverrides['lvConductor'] ?? _materialRateAt(2),
-      'hvConnectionLeads':
-          rateOverrides['hvConnectionLeads'] ?? _materialRateAt(3),
-      'lvConnectionLeads':
-          rateOverrides['lvConnectionLeads'] ?? _materialRateAt(4),
-      'insulationMaterial':
-          rateOverrides['insulationMaterial'] ?? _materialRateAt(5),
-      'transformerOil': rateOverrides['transformerOil'] ?? _materialRateAt(6),
-      'tankLidEtc': rateOverrides['tankLidEtc'] ?? _materialRateAt(7),
-      if (lomBooleans['hvCableBox'] == true)
-        'hvCableBox': rateOverrides['hvCableBox'] ?? _materialRateAt(8),
-      if (lomBooleans['lvCableBox'] == true)
-        'lvCableBox': rateOverrides['lvCableBox'] ?? _materialRateAt(9),
-      if (lomBooleans['hvBushing'] == true)
-        'hvBushing': rateOverrides['hvBushing'] ?? _materialRateAt(10),
-      if (lomBooleans['lvBushing'] == true)
-        'lvBushing': rateOverrides['lvBushing'] ?? _materialRateAt(11),
-      'radiatorsAndHeatExc':
-          rateOverrides['radiatorsAndHeatExc'] ?? _materialRateAt(12),
-      'permaWood': rateOverrides['permaWood'] ?? _materialRateAt(13),
-      if (_isTruthy(lomBooleans['drainValve']))
-        'drainValve': rateOverrides['drainValve'] ?? _materialRateAt(14),
-      if (_isTruthy(lomBooleans['filterValve']))
-        'filterValve': rateOverrides['filterValve'] ?? _materialRateAt(15),
-      if (_isTruthy(lomBooleans['samplingValve']))
-        'samplingValve': rateOverrides['samplingValve'] ?? _materialRateAt(16),
-      'relayShutOffValve':
-          rateOverrides['relayShutOffValve'] ?? _materialRateAt(17),
-      'breatherSilicaGel':
-          rateOverrides['breatherSilicaGel'] ?? _materialRateAt(18),
-      'ratingPlate': rateOverrides['ratingPlate'] ?? _materialRateAt(19),
-      'thermometerPocket':
-          rateOverrides['thermometerPocket'] ?? _materialRateAt(20),
-      'airReleasePlug': rateOverrides['airReleasePlug'] ?? _materialRateAt(21),
-      'coreBoltsAndTieRods':
-          rateOverrides['coreBoltsAndTieRods'] ?? _materialRateAt(22),
-      if (_isTruthy(lomBooleans['oltc']))
-        'oltc': rateOverrides['oltc'] ?? _materialRateAt(23),
-      if (_isTruthy(lomBooleans['octc']))
-        'octc': rateOverrides['octc'] ?? _materialRateAt(24),
-      'oti': rateOverrides['oti'] ?? _materialRateAt(25),
-      'wti': rateOverrides['wti'] ?? _materialRateAt(26),
-      'buchholzRelay': rateOverrides['buchholzRelay'] ?? _materialRateAt(27),
-      'marshallingBox': rateOverrides['marshallingBox'] ?? _materialRateAt(28),
-      if (_isTruthy(lomBooleans['oilLevelGauge']))
-        'oilLevelGauge': rateOverrides['oilLevelGauge'] ?? _materialRateAt(29),
-      if (_isTruthy(lomBooleans['mog']))
-        'mog': rateOverrides['mog'] ?? _materialRateAt(30),
-      if (_isTruthy(lomBooleans['pressureReliefValve']))
-        'pressureReliefValve':
-            rateOverrides['pressureReliefValve'] ?? _materialRateAt(31),
-      'oilCirculatingPump':
-          rateOverrides['oilCirculatingPump'] ?? _materialRateAt(32),
-      'avrrtcc': rateOverrides['avrrtcc'] ?? _materialRateAt(33),
-      if (_isTruthy(lomBooleans['rollers']))
-        'rollers': rateOverrides['rollers'] ?? _materialRateAt(34),
-      'pumpControlCubicle':
-          rateOverrides['pumpControlCubicle'] ?? _materialRateAt(35),
-      'biMetallicConnector':
-          rateOverrides['biMetallicConnector'] ?? _materialRateAt(36),
-      'fasteners': rateOverrides['fasteners'] ?? _materialRateAt(37),
-      'otherMaterials': rateOverrides['otherMaterials'] ?? _materialRateAt(38),
-    };
+    final lomRate = <String, Object?>{...rateOverrides};
 
     return LomRequest(
       lomBooleans: lomBooleans,
       lomQuantity: lomQuantity,
       lomRate: lomRate,
+      hvBushingRateSelection: _bushingRateSelection(
+        fabrication.readPath('hvb.hvb_Volt') ??
+            twoWinding.readPath('highVoltage'),
+        fabrication.readPath('hvb.hvb_Amp') ??
+            twoWinding.readPath('tankAndOilFormulas.hvBushingCurrent'),
+        null,
+      ),
+      lvBushingRateSelection: _bushingRateSelection(
+        fabrication.readPath('lvb.lvb_Volt') ??
+            twoWinding.readPath('lowVoltage'),
+        fabrication.readPath('lvb.lvb_Amp') ??
+            twoWinding.readPath('tankAndOilFormulas.lvBushingCurrent'),
+        null,
+      ),
     );
   }
 
-  num _materialRateAt(int index) {
-    if (index < 0 || index >= _state.materials.length) {
-      return 0.0;
-    }
-    return _state.materials[index].materialRate;
+  Map<String, Object?> _bushingRateSelection(
+    Object? voltage,
+    Object? current,
+    String? type,
+  ) {
+    return <String, Object?>{
+      'voltage': voltage,
+      'current': current,
+      if (type != null && type.isNotEmpty) 'type': type,
+    };
   }
 
   bool _isTruthy(Object? value) {
