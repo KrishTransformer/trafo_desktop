@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
@@ -351,31 +352,76 @@ class FilesController extends ChangeNotifier {
     final lvcbValue = fabrication.readPath('lvcb.lvcb');
     final isOltcValue = twoWinding.readPath('isOLTC');
     final isCspValue = twoWinding.readPath('isCSP');
+    final permaWoodWeightKg = _permaWoodWeightKg(twoWinding);
+    final buchholzRelaySelected = _isTruthy(
+      fabrication.readPath('gorPipe.buchholz_Relay'),
+    );
+    final relayShutOffValveQuantity = buchholzRelaySelected
+        ? (_isTruthy(fabrication.readPath('gorPipe.single_Valve')) ? 1 : 2)
+        : 0;
+    final thermometerPocketQuantity = _truthyCount(<Object?>[
+      fabrication.readPath('thermoPkt.thermoPkt1'),
+      fabrication.readPath('thermoPkt.thermoPkt2'),
+    ]);
+    final marshallingBoxSelected = _isTruthy(
+      fabrication.readPath('restOfVariables.mbox') ??
+          fabrication.readPath('mbox'),
+    );
+    final marshallingBoxQuantity = marshallingBoxSelected
+        ? _positiveQuantity(
+            fabrication.readPath('restOfVariables.mbox_Inst_Nos') ??
+                fabrication.readPath('marshlingBox'),
+          )
+        : 0;
+    final pressureReliefValveSelected = _isTruthy(
+      fabrication.readPath('restOfVariables.prv') ??
+          fabrication.readPath('pressureRelief'),
+    );
+    final explosionVentSelected = _isTruthy(
+      fabrication.readPath('exp_Vent.exp_Vent'),
+    );
+    final radiatorValvesSelected = _isTruthy(
+      fabrication.readPath('radiator.radiator_Vlv'),
+    );
+    final radiatorValvesQuantity = radiatorValvesSelected
+        ? _positiveQuantity(fabrication.readPath('radiator.radiator_Nos')) * 2
+        : 0;
+    final liftingLugsSelected = _isTruthy(
+      fabrication.readPath('lid_LiftLug.lid_LiftLug'),
+    );
+    final thermoSiphonSelected = _isTruthy(
+      fabrication.readPath('restOfVariables.thrmo_Syphn') ??
+          fabrication.readPath('thermoSiphon'),
+    );
 
     final lomBooleans = <String, Object?>{
-      'hvCableBox': hvcbValue == false ? false : true,
-      'lvCableBox': lvcbValue == false ? false : true,
-      'hvBushing': hvcbValue == false ? true : false,
-      'lvBushing': lvcbValue == false ? true : false,
-      'permaWood': true,
-      'drainValve': fabrication.readPath('drain_Vlv.drain_Vlv'),
-      'filterValve': fabrication.readPath('fill_Vlv.fill_Vlv'),
-      'samplingValve': fabrication.readPath('smpl_Vlv.smpl_Vlv'),
-      'relayShutOffValve': true,
-      'thermometerPocket': true,
+      'hvCableBox': _isTruthy(hvcbValue),
+      'lvCableBox': _isTruthy(lvcbValue),
+      'hvBushing': !_isTruthy(hvcbValue),
+      'lvBushing': !_isTruthy(lvcbValue),
+      'permaWood': permaWoodWeightKg > 0,
+      'drainValve': _isTruthy(fabrication.readPath('drain_Vlv.drain_Vlv')),
+      'filterValve': _isTruthy(fabrication.readPath('fill_Vlv.fill_Vlv')),
+      'samplingValve': _isTruthy(fabrication.readPath('smpl_Vlv.smpl_Vlv')),
+      'relayShutOffValve': relayShutOffValveQuantity > 0,
+      'thermometerPocket': thermometerPocketQuantity > 0,
       'airReleasePlug': true,
       'oltc': isOltcValue,
       'octc': isOltcValue == true ? false : true,
       'oti': true,
       'wti': true,
-      'buchholzRelay': true,
-      'marshallingBox': true,
+      'buchholzRelay': buchholzRelaySelected,
+      'marshallingBox': marshallingBoxSelected,
       'oilLevelGauge': isCspValue == false ? true : false,
-      'mog': fabrication.readPath('mog.mog'),
-      'pressureReliefValve': fabrication.readPath('restOfVariables.prv'),
+      'mog': _isTruthy(fabrication.readPath('mog.mog')),
+      'pressureReliefValve': pressureReliefValveSelected,
+      'explosionVent': explosionVentSelected,
+      'radiatorValves': radiatorValvesQuantity > 0,
+      'liftingLugs': liftingLugsSelected,
+      'thermoSiphon': thermoSiphonSelected,
       'oilCirculatingPump': true,
       'avrrtcc': true,
-      'rollers': fabrication.readPath('roller.roller'),
+      'rollers': _isTruthy(fabrication.readPath('roller.roller')),
       'pumpControlCubicle': true,
       'biMetallicConnector': true,
       'fasteners': true,
@@ -409,14 +455,20 @@ class FilesController extends ChangeNotifier {
       'radiatorsAndHeatExc': twoWinding.readPath(
         'tankAndOilFormulas.totalRadiatorWeight',
       ),
-      'permaWood': 0.0,
-      'drainValve': fabrication.readPath('drain_Vlv.drain_Vlv_Nos'),
-      'filterValve': fabrication.readPath('fill_Vlv.fill_Vlv_Nos'),
-      'samplingValve': fabrication.readPath('smpl_Vlv.smpl_Vlv_Nos'),
-      'relayShutOffValve': 0.0,
+      'permaWood': permaWoodWeightKg,
+      'drainValve': _isTruthy(fabrication.readPath('drain_Vlv.drain_Vlv'))
+          ? _positiveQuantity(fabrication.readPath('drain_Vlv.drain_Vlv_Nos'))
+          : 0.0,
+      'filterValve': _isTruthy(fabrication.readPath('fill_Vlv.fill_Vlv'))
+          ? _positiveQuantity(fabrication.readPath('fill_Vlv.fill_Vlv_Nos'))
+          : 0.0,
+      'samplingValve': _isTruthy(fabrication.readPath('smpl_Vlv.smpl_Vlv'))
+          ? _positiveQuantity(fabrication.readPath('smpl_Vlv.smpl_Vlv_Nos'))
+          : 0.0,
+      'relayShutOffValve': relayShutOffValveQuantity,
       'breatherSilicaGel': 1,
       'ratingPlate': 1,
-      'thermometerPocket': 1,
+      'thermometerPocket': thermometerPocketQuantity,
       'airReleasePlug': 0.0,
       'coreBoltsAndTieRods': twoWinding.readPath(
         'tankAndOilFormulas.channelWeight',
@@ -425,14 +477,18 @@ class FilesController extends ChangeNotifier {
       'octc': 1,
       'oti': 0.0,
       'wti': 0.0,
-      'buchholzRelay': 0.0,
-      'marshallingBox': 0.0,
+      'buchholzRelay': buchholzRelaySelected ? 1 : 0.0,
+      'marshallingBox': marshallingBoxQuantity,
       'oilLevelGauge': fabrication.readPath('cons.cons_Olg_Nos'),
       'mog': 1,
-      'pressureReliefValve': 0.0,
+      'pressureReliefValve': pressureReliefValveSelected ? 1 : 0.0,
+      'explosionVent': explosionVentSelected ? 1 : 0.0,
+      'radiatorValves': radiatorValvesQuantity,
+      'liftingLugs': liftingLugsSelected ? 1 : 0.0,
+      'thermoSiphon': thermoSiphonSelected ? 1 : 0.0,
       'oilCirculatingPump': 0.0,
       'avrrtcc': 0.0,
-      'rollers': 4,
+      'rollers': _isTruthy(fabrication.readPath('roller.roller')) ? 4 : 0.0,
       'pumpControlCubicle': 0.0,
       'biMetallicConnector': 0.0,
       'fasteners': 0.0,
@@ -485,15 +541,65 @@ class FilesController extends ChangeNotifier {
     return <String, Object?>{'material': material};
   }
 
+  num _permaWoodWeightKg(TwoWindingDesign twoWinding) {
+    final heightMm =
+        _toNumber(twoWinding.readPath('permaWoodRing')) ??
+        _toNumber(twoWinding.readPath('lvFormulas.permaWoodRing')) ??
+        _toNumber(twoWinding.readPath('coilDimensions.permaWoodRing'));
+    final outerDiameterMm =
+        _toNumber(twoWinding.readPath('coilDimensions.hvod')) ??
+        _toNumber(twoWinding.readPath('coilDimensions.HVOD'));
+    final innerDiameterMm =
+        _toNumber(twoWinding.readPath('core.coreDia')) ??
+        _toNumber(twoWinding.readPath('coilDimensions.coreDia'));
+
+    if (heightMm == null ||
+        outerDiameterMm == null ||
+        innerDiameterMm == null ||
+        heightMm <= 0 ||
+        outerDiameterMm <= innerDiameterMm ||
+        innerDiameterMm <= 0) {
+      return 0;
+    }
+
+    final volumeCubicMeters =
+        (math.pi / 4) *
+        (outerDiameterMm * outerDiameterMm -
+            innerDiameterMm * innerDiameterMm) *
+        heightMm /
+        1000000000;
+
+    return volumeCubicMeters * 1100;
+  }
+
   bool _isTruthy(Object? value) {
     return switch (value) {
       true => true,
       false => false,
       null => false,
-      String() => value.trim().isNotEmpty && value.toLowerCase() != 'false',
+      String() => _truthyString(value),
       num() => value != 0,
       _ => true,
     };
+  }
+
+  bool _truthyString(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.isNotEmpty &&
+        normalized != 'false' &&
+        normalized != '0' &&
+        normalized != 'no' &&
+        normalized != 'no_formula_given' &&
+        normalized != 'skipped_for_now';
+  }
+
+  num _positiveQuantity(Object? value, [num fallback = 1]) {
+    final quantity = _toNumber(value);
+    return quantity != null && quantity > 0 ? quantity : fallback;
+  }
+
+  int _truthyCount(Iterable<Object?> values) {
+    return values.where(_isTruthy).length;
   }
 
   num? _toNumber(Object? value) {
