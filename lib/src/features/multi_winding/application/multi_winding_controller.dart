@@ -232,6 +232,9 @@ class MultiWindingController extends ChangeNotifier {
       'lockedAttributes': locks,
       'cost': _map(source['cost']),
       'radialGaps': radialGaps,
+      'coilDimensions': <String, dynamic>{
+        'coilCoilGap': _number(_map(source['coilDimensions'])['coilCoilGap']),
+      },
       ...radialGaps,
     };
     for (final windingId in active) {
@@ -323,12 +326,8 @@ class MultiWindingController extends ChangeNotifier {
     'conductorSizes': _isLocked(locks, '', 'conductorSizes')
         ? _formatConductorSizes(winding)
         : '',
-    'radialParallelCond': _isLocked(locks, '', 'noInParallel')
-        ? _integer(winding['radialParallelCond'])
-        : null,
-    'axialParallelCond': _isLocked(locks, '', 'noInParallel')
-        ? _integer(winding['axialParallelCond'])
-        : null,
+    'radialParallelCond': _integer(winding['radialParallelCond']),
+    'axialParallelCond': _integer(winding['axialParallelCond']),
     'noInParallel': _isLocked(locks, '', 'noInParallel')
         ? _formatParallelCount(winding)
         : '',
@@ -704,6 +703,10 @@ class MultiWindingController extends ChangeNotifier {
     };
     merged['coilDimensions'] = <String, dynamic>{
       ..._map(merged['coilDimensions']),
+      'coilCoilGap':
+          dimensions['coilCoilGap'] ??
+          dimensions['hVHVGap'] ??
+          _map(merged['coilDimensions'])['coilCoilGap'],
       'coreDia':
           dimensions['coreDia'] ?? _map(merged['coilDimensions'])['coreDia'],
       'coreGap':

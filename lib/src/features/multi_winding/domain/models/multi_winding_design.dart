@@ -107,6 +107,7 @@ class MultiWindingDesign {
       'coreGap': '',
       'lvhvgap': '',
       'hvhvgap': '',
+      'coilCoilGap': '',
       'lvid': '',
       'lvradial': '',
       'lvod': '',

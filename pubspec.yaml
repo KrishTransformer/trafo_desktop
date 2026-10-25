@@ -1,5 +1,5 @@
 name: trafo_desktop
-description: "Invoice management desktop application."
+description: "Trafo desktop application."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -78,14 +78,14 @@ flutter:
   uses-material-design: true
 
 msix_config:
-  display_name: Invoice App
-  publisher_display_name: Invoice App
-  identity_name: com.invoiceapp.desktop
+  display_name: Trafo Desktop
+  publisher_display_name: Trafo Desktop
+  identity_name: com.trafo.desktop
   msix_version: 1.0.0.0
   logo_path: windows/runner/resources/app_icon.ico
   capabilities: internetClient
-  publisher: "CN=Invoice App Internal"
-  certificate_path: installer/private/InvoiceApp-Signing.pfx
+  publisher: "CN=Trafo Desktop Internal"
+  certificate_path: installer/private/TrafoDesktop-Signing.pfx
   # Avoid an interactive certificate installation during automated builds.
   install_certificate: false
 

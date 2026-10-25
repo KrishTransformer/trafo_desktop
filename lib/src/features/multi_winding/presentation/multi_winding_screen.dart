@@ -1442,7 +1442,10 @@ const _dimensionRows = <(String, String)>[
 ];
 
 List<(String, String)> _gapFields(List<_WindingSpec> windings) {
-  final fields = <(String, String)>[('Core-LV Clr', 'coilDimensions.coreGap')];
+  final fields = <(String, String)>[
+    ('Phase-to-phase gap (mm)', 'coilDimensions.coilCoilGap'),
+    ('Core-LV Clr', 'coilDimensions.coreGap'),
+  ];
   for (var index = 1; index < windings.length; index++) {
     final left = windings[index - 1];
     final right = windings[index];
