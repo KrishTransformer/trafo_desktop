@@ -14,9 +14,9 @@ if ($LASTEXITCODE -ne 0) {
 
 $releasePath = Join-Path $PSScriptRoot 'release'
 New-Item -ItemType Directory -Path $releasePath -Force | Out-Null
-Copy-Item 'build\windows\x64\runner\Release\trafo_desktop.msix' (Join-Path $releasePath 'InvoiceApp.msix') -Force
-Copy-Item (Join-Path $PSScriptRoot 'InvoiceApp-Signing.cer') $releasePath -Force
-Copy-Item (Join-Path $PSScriptRoot 'Install-InvoiceApp.ps1') $releasePath -Force
-Copy-Item (Join-Path $PSScriptRoot 'Install-InvoiceApp.cmd') $releasePath -Force
+Copy-Item 'build\windows\x64\runner\Release\trafo_desktop.msix' (Join-Path $releasePath 'TrafoDesktop.msix') -Force
+Copy-Item (Join-Path $PSScriptRoot 'TrafoDesktop-Signing.cer') $releasePath -Force
+Copy-Item (Join-Path $PSScriptRoot 'Install-TrafoDesktop.ps1') $releasePath -Force
+Copy-Item (Join-Path $PSScriptRoot 'Install-TrafoDesktop.cmd') $releasePath -Force
 
 Write-Host "Share the contents of: $releasePath" -ForegroundColor Green

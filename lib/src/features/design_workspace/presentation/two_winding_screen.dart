@@ -194,6 +194,12 @@ class _TwoWindingScreenState extends State<TwoWindingScreen> {
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
                                 _CommentsCard(
+                                  lossesAt50Percent: state.design.stringAt(
+                                    'lossesAt50Percent',
+                                  ),
+                                  lossesAt100Percent: state.design.stringAt(
+                                    'lossesAt100Percent',
+                                  ),
                                   persistentComments: persistentComments,
                                   hoveredComment: hoveredComment,
                                 ),
@@ -1120,10 +1126,14 @@ class _ClearanceCard extends StatelessWidget {
 
 class _CommentsCard extends StatelessWidget {
   const _CommentsCard({
+    required this.lossesAt50Percent,
+    required this.lossesAt100Percent,
     required this.persistentComments,
     required this.hoveredComment,
   });
 
+  final String lossesAt50Percent;
+  final String lossesAt100Percent;
   final String persistentComments;
   final String hoveredComment;
 
@@ -1139,9 +1149,13 @@ class _CommentsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Comments',
-            style: AppTextStyles.pageTitle(context),
+          Text('Comments', style: AppTextStyles.pageTitle(context)),
+          const SizedBox(height: 12),
+          _CommentPanel(
+            title: 'Losses',
+            message:
+                'Losses at 50% load: ${lossesAt50Percent.trim().isEmpty ? '—' : '$lossesAt50Percent W'}\n'
+                'Losses at 100% load: ${lossesAt100Percent.trim().isEmpty ? '—' : '$lossesAt100Percent W'}',
           ),
           const SizedBox(height: 12),
           if (hasPersistentComments)
